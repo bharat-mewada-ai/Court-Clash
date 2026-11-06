@@ -2,6 +2,13 @@
 
 A virtual courtroom simulation game where two parties argue legal disputes in front of an AI Judge grounded strictly by constitutional RAG retrieval.
 
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react&logoColor=black)](https://react.dev/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-339933?style=flat&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Socket.IO](https://img.shields.io/badge/Socket.IO-4.7-010101?style=flat&logo=socketdotio&logoColor=white)](https://socket.io/)
+[![License](https://img.shields.io/badge/License-MIT-F7DF1E?style=flat)](LICENSE)
+[![Constitution](https://img.shields.io/badge/Articles-507_Complete-FF9933?style=flat)](ai-service/data/indian_constitution.json)
+
 ---
 
 ## 🏛️ Architecture Overview
