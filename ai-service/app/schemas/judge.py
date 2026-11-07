@@ -6,9 +6,86 @@ from enum import Enum
 from pydantic import BaseModel, Field
 
 class JudgePersona(str, Enum):
-    STRICT = "Strict"
-    CHILL = "Chill"
-    TEXTUALIST = "Textualist"
+    STRICT = "STRICT"
+    SARCASTIC = "SARCASTIC"
+    FILMY = "FILMY"
+    SLEEPY = "SLEEPY"
+    # Legacy alias support
+    CHILL = "SARCASTIC"
+    TEXTUALIST = "STRICT"
+
+class ArticleCheckStatus(str, Enum):
+    CORRECT = "CORRECT"
+    IRRELEVANT = "IRRELEVANT"
+    NOT_FOUND = "NOT_FOUND"
+    NONE = "NONE"
+
+class JudgeEmotion(str, Enum):
+    NEUTRAL = "NEUTRAL"
+    ANGRY = "ANGRY"
+    AMUSED = "AMUSED"
+    THINKING = "THINKING"
+    SLEEPING = "SLEEPING"
+    IMPRESSED = "IMPRESSED"
+
+class SoundEffect(str, Enum):
+    NONE = "NONE"
+    GAVEL = "GAVEL"
+    OBJECTION = "OBJECTION"
+    DRUMROLL = "DRUMROLL"
+    HEARTBEAT = "HEARTBEAT"
+    SNORE = "SNORE"
+    CHEER = "CHEER"
+
+class BadgeType(str, Enum):
+    NONE = "NONE"
+    ARTICLE_MASTER = "ARTICLE_MASTER"
+    BLUFF_CAUGHT = "BLUFF_CAUGHT"
+    SMOOTH_TALKER = "SMOOTH_TALKER"
+
+class GalleryReaction(BaseModel):
+    user: str
+    text: str
+
+class JudgeEffects(BaseModel):
+    sound: SoundEffect = SoundEffect.NONE
+    screen_shake: bool = False
+    badge: BadgeType = BadgeType.NONE
+    judge_emotion: JudgeEmotion = JudgeEmotion.NEUTRAL
+
+class ArticleCheck(BaseModel):
+    cited: Optional[str] = None
+    status: ArticleCheckStatus = ArticleCheckStatus.NONE
+
+class VerdictPayload(BaseModel):
+    winner: str = Field(..., description="'PETITIONER', 'RESPONDENT', or 'PARTIAL'")
+    summary: str
+    key_articles: List[str]
+    closing_line: str
+
+class TurnReactionOutput(BaseModel):
+    judge_line: str
+    ruling: str = Field(default="NONE", description="'NONE', 'SUSTAINED', 'OVERRULED', 'WARNING', 'VERDICT'")
+    score_delta: dict = Field(default_factory=lambda: {"petitioner": 0, "respondent": 0})
+    score_reason: str = Field(default="Standard submission")
+    article_check: ArticleCheck = Field(default_factory=ArticleCheck)
+    effects: JudgeEffects = Field(default_factory=JudgeEffects)
+    gallery: List[GalleryReaction] = Field(default_factory=list)
+    verdict: Optional[VerdictPayload] = None
+
+class TurnEventInput(BaseModel):
+    namespace_id: str = Field(default="indian_constitution")
+    persona: str = Field(default="STRICT")
+    phase: str = Field(default="ORAL_ARGUMENTS", description="'FILING', 'ORAL_ARGUMENTS', 'REBUTTAL', 'VERDICT'")
+    petitioner_name: str = Field(default="Petitioner")
+    petitioner_score: int = Field(default=85)
+    respondent_name: str = Field(default="Respondent")
+    respondent_score: int = Field(default=85)
+    event_type: str = Field(default="SUBMISSION", description="'SUBMISSION', 'OBJECTION', 'ARTICLE_CITED', 'TIMEOUT', 'JOIN', 'LEAVE'")
+    event_text: str = Field(default="")
+    speaker_role: str = Field(default="petitioner", description="'petitioner' or 'respondent'")
+    transcript: List[str] = Field(default_factory=list)
+    seconds_left: int = Field(default=60)
 
 class ApplicableArticle(BaseModel):
     """

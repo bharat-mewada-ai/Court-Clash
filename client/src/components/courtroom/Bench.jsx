@@ -8,10 +8,21 @@ export function Bench({
   judgeName = "Hon'ble Judge",
   isHumanJudge = false,
   judgeStatement = "Court is in session. Submissions must adhere strictly to the chosen constitutional rulebook.",
+  judgeEmotion = "NEUTRAL",
   articlesInPlay = [],
   transcript = []
 }) {
   const transcriptEndRef = useRef(null);
+
+  const emotionMap = {
+    SLEEPING: { icon: "😴", label: "Drowsy" },
+    ANGRY: { icon: "😡", label: "Furious" },
+    AMUSED: { icon: "😏", label: "Amused" },
+    THINKING: { icon: "🧐", label: "Pondering" },
+    IMPRESSED: { icon: "🌟", label: "Impressed" },
+    NEUTRAL: { icon: "⚖️", label: "Neutral" }
+  };
+  const currentEmotion = emotionMap[judgeEmotion?.toUpperCase()] || emotionMap.NEUTRAL;
 
   // Auto-scroll transcript to newest entry
   useEffect(() => {
@@ -71,9 +82,27 @@ export function Bench({
             </div>
           </div>
 
-          <Chip variant="gold">
-            {isHumanJudge ? "Human Judge" : `Persona: ${judgePersona}`}
-          </Chip>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <span
+              style={{
+                fontSize: "0.85rem",
+                padding: "4px 10px",
+                borderRadius: "999px",
+                background: "rgba(255, 255, 255, 0.08)",
+                border: "1px solid rgba(255, 255, 255, 0.15)",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px"
+              }}
+              title={`Judge Mood: ${currentEmotion.label}`}
+            >
+              <span>{currentEmotion.icon}</span>
+              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "600" }}>{currentEmotion.label}</span>
+            </span>
+            <Chip variant="gold">
+              {isHumanJudge ? "Human Judge" : `Persona: ${judgePersona}`}
+            </Chip>
+          </div>
         </div>
 
         {/* Judge Speech Bubble */}

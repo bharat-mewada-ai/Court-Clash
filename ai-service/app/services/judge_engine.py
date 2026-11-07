@@ -20,7 +20,17 @@ from app.schemas.judge import (
     JudgeQuestionInput,
     JudgeQuestionOutput,
     JudgeObjectionInput,
-    JudgeObjectionOutput
+    JudgeObjectionOutput,
+    TurnEventInput,
+    TurnReactionOutput,
+    ArticleCheck,
+    ArticleCheckStatus,
+    JudgeEffects,
+    SoundEffect,
+    BadgeType,
+    JudgeEmotion,
+    GalleryReaction,
+    VerdictPayload
 )
 from app.schemas.constitution import RetrievedArticle
 from app.rag.vector_store import vector_store
@@ -401,4 +411,307 @@ def evaluate_objection(payload: JudgeObjectionInput) -> JudgeObjectionOutput:
         explanation=explanation,
         credibility_impact=credibility_impact,
         struck_from_record=struck
+    )
+
+
+# -------------------------------------------------------------
+# Dynamic Turn-Reaction Engine (Hinglish Personas & Gallery)
+# -------------------------------------------------------------
+SYSTEM_PROMPT_TEMPLATE = """You are the PRESIDING JUDGE in "Court Clash", an educational, entertaining courtroom simulation for Indian college students. You are NOT a boring chatbot. You are a character with personality, but you always stay fair and grounded in the law provided.
+
+# PERSONA
+Active persona: {persona}   // one of: STRICT, SARCASTIC, FILMY, SLEEPY
+
+- STRICT: No-nonsense, formal, sharp. Short sentences. Disciplines sloppy arguments.
+  e.g. "Counsel, yeh court hai, chai ki tapri nahi. Point pe aao."
+- SARCASTIC: Dry wit, roasts weak arguments politely but savagely.
+  e.g. "Wah, kitni gehri baat. Ab isme koi Article bhi hai ya sirf vibes?"
+- FILMY: Bollywood-courtroom drama. Dialogue-baazi, "Order! Order!", "Tareekh pe tareekh".
+  e.g. "Objection sustained! Aur yeh court emotion se nahi, saboot se chalti hai."
+- SLEEPY: Drowsy old judge, occasionally dozes mid-sentence ("...hmm? haan, continue"). Wakes up sharply on a really good point.
+
+# LANGUAGE
+- Reply in Hinglish (Hindi in Roman script mixed with simple English), matching the user's tone.
+- Legal terms (Article, objection, sustained, overruled) stay in English.
+- Max 2-3 short sentences for "judge_line". Punchy, quotable, never a lecture.
+- Light humor is encouraged. Never insult religion, caste, gender, region, or any real person. Roast the ARGUMENT, never the PERSON.
+
+# LEGAL GROUNDING
+- Base all legal reasoning ONLY on the provided constitution context:
+{rag_context}
+- If a user cites an Article, verify it against the context.
+  - Correct and relevant -> reward.
+  - Real but irrelevant -> mild penalty, explain why.
+  - Not found / wrong -> "bluff caught": larger penalty, call it out in persona.
+- Never invent Articles or case law. If context is insufficient, say so in character
+  (e.g. "Court ke paas is baat ka record nahi hai, apna point clear karo.").
+- This is an educational simulation, not legal advice.
+
+# GAME STATE
+Phase: {phase}
+Petitioner: {petitioner_name}, credibility {pet_score}
+Respondent: {respondent_name}, credibility {resp_score}
+Last event: {event_type}
+Event payload: {event_text}
+Speaker: {speaker_role}
+Transcript (last 10): {transcript}
+Time left: {seconds_left}
+
+# OUTPUT FORMAT (STRICT)
+Return ONLY valid JSON:
+{{
+  "judge_line": "string (Hinglish, in persona, max 3 sentences)",
+  "ruling": "NONE | SUSTAINED | OVERRULED | WARNING | VERDICT",
+  "score_delta": {{ "petitioner": 0, "respondent": 0 }},
+  "score_reason": "string, max 8 words",
+  "article_check": {{
+    "cited": "string or null",
+    "status": "CORRECT | IRRELEVANT | NOT_FOUND | NONE"
+  }},
+  "effects": {{
+    "sound": "NONE | GAVEL | OBJECTION | DRUMROLL | HEARTBEAT | SNORE | CHEER",
+    "screen_shake": false,
+    "badge": "NONE | ARTICLE_MASTER | BLUFF_CAUGHT | SMOOTH_TALKER",
+    "judge_emotion": "NEUTRAL | ANGRY | AMUSED | THINKING | SLEEPING | IMPRESSED"
+  }},
+  "gallery": [ {{ "user": "string", "text": "string" }} ],
+  "verdict": null
+}}
+"""
+
+def generate_turn_reaction(turn: TurnEventInput) -> TurnReactionOutput:
+    """
+    Evaluates in-flight courtroom events (submissions, objections, citations, timeouts)
+    and returns rich persona-styled Hinglish reactions, score deltas, effects, and crowd reactions.
+    """
+    import re
+    persona_key = turn.persona.upper()
+    if persona_key not in ["STRICT", "SARCASTIC", "FILMY", "SLEEPY"]:
+        persona_key = "STRICT"
+
+    # 1. RAG retrieval for grounding
+    retrieved = []
+    if turn.event_text.strip():
+        retrieved = vector_store.search(turn.namespace_id, turn.event_text, top_k=3)
+
+    rag_text = ""
+    for idx, r in enumerate(retrieved, 1):
+        rag_text += f"[{idx}] {r.article_number} - {r.title}: {r.text[:200]}...\n"
+    if not rag_text:
+        rag_text = "NO CONSTITUTIONAL PROVISIONS FOUND FOR THIS QUERY.\n"
+
+    # 2. Check for Article citations
+    match = re.search(r"(Article\s+\d+[A-Z]?|Rule\s+\d+|Section\s+\d+)", turn.event_text, re.IGNORECASE)
+    cited_art = match.group(0).title() if match else None
+
+    # Check citation grounding
+    article_status = ArticleCheckStatus.NONE
+    if cited_art:
+        # Check if in retrieved
+        if any(cited_art.lower() in r.article_number.lower() for r in retrieved):
+            article_status = ArticleCheckStatus.CORRECT
+        else:
+            # Check if exists anywhere in namespace
+            exact_hits = vector_store.search(turn.namespace_id, cited_art, top_k=1)
+            if exact_hits and any(cited_art.lower() in h.article_number.lower() for h in exact_hits):
+                article_status = ArticleCheckStatus.IRRELEVANT
+            else:
+                article_status = ArticleCheckStatus.NOT_FOUND
+
+    # 3. Attempt LLM API Call
+    prompt = SYSTEM_PROMPT_TEMPLATE.format(
+        persona=persona_key,
+        rag_context=rag_text,
+        phase=turn.phase,
+        petitioner_name=turn.petitioner_name,
+        pet_score=turn.petitioner_score,
+        respondent_name=turn.respondent_name,
+        resp_score=turn.respondent_score,
+        event_type=turn.event_type,
+        event_text=turn.event_text,
+        speaker_role=turn.speaker_role,
+        transcript=json.dumps(turn.transcript[-8:]),
+        seconds_left=turn.seconds_left
+    )
+
+    llm_res = call_llm_api(prompt)
+    if llm_res and isinstance(llm_res, dict) and "judge_line" in llm_res:
+        try:
+            return TurnReactionOutput(**llm_res)
+        except Exception as e:
+            print(f"[TurnReaction LLM Parse Notice] {e}, falling back to offline Hinglish engine.")
+
+    # 4. Deterministic Offline Hinglish Persona Engine
+    return generate_offline_turn_reaction(turn, persona_key, cited_art, article_status, retrieved)
+
+
+def generate_offline_turn_reaction(
+    turn: TurnEventInput,
+    persona: str,
+    cited_art: Optional[str],
+    article_status: ArticleCheckStatus,
+    retrieved: list
+) -> TurnReactionOutput:
+    """High-character deterministic offline Hinglish judicial engine."""
+    speaker = turn.speaker_role
+    other = "respondent" if speaker == "petitioner" else "petitioner"
+    score_delta = { "petitioner": 0, "respondent": 0 }
+    score_reason = "Standard oral argument"
+    badge = BadgeType.NONE
+    sound = SoundEffect.NONE
+    screen_shake = False
+    emotion = JudgeEmotion.NEUTRAL
+    ruling = "NONE"
+
+    # Default college crowd audience reactions
+    gallery_pool = [
+        {"user": "@delhi_lawyer", "text": "😂 ouch bhai ka kat gaya"},
+        {"user": "@nlu_topper", "text": "Solid point bhai! 🔥"},
+        {"user": "@campus_backbencher", "text": "Judge saab mood me hain aaj 💀"},
+        {"user": "@moot_court_pro", "text": "Ye argument record pe lena chahiye ⚖️"},
+        {"user": "@chai_tapri_bhai", "text": "Chai samosa kahan hai court me? ☕"},
+        {"user": "@law_intern", "text": "Bro cooked with that statement!"}
+    ]
+    import random
+    gallery = random.sample(gallery_pool, min(2, len(gallery_pool)))
+
+    # A. SUBMISSION EVENT
+    if turn.event_type == "SUBMISSION":
+        if article_status == ArticleCheckStatus.CORRECT:
+            score_delta[speaker] = 7
+            score_reason = f"Grounded {cited_art} citation"
+            badge = BadgeType.ARTICLE_MASTER
+            sound = SoundEffect.GAVEL
+            emotion = JudgeEmotion.IMPRESSED
+            lines = {
+                "STRICT": f"Achhi baat hai. {cited_art} bilkul sahi jagah quote kiya hai. Aise hi point pe raho.",
+                "SARCASTIC": f"Chalo, finally kisi ne dhang ka kanoon quote kiya! {cited_art} ka citation spot on hai.",
+                "FILMY": f"Shabash vakil sahab! {cited_art} ki dhaal aage karke tune baazi palat di!",
+                "SLEEPY": f"*jolt* Haan! {cited_art} sunke meri neend udd gayi. Zabardast point hai, continue karo."
+            }
+        elif article_status == ArticleCheckStatus.NOT_FOUND:
+            score_delta[speaker] = -6
+            score_reason = f"Fake {cited_art} bluff caught"
+            badge = BadgeType.BLUFF_CAUGHT
+            sound = SoundEffect.OBJECTION
+            screen_shake = True
+            emotion = JudgeEmotion.ANGRY
+            lines = {
+                "STRICT": f"Kanoon ke sath mazak mat karo, counsel! {cited_art} ka is mudde se koi lena-dena nahi hai.",
+                "SARCASTIC": f"Arey wah, yeh kaunsi pocket book se {cited_art} nikala? Google bhi mana kar raha hai bhai!",
+                "FILMY": f"Babu Moshai! Yeh jhoothe daawe court me nahi chalenge! Record se bahar fenk raha hu yeh argument!",
+                "SLEEPY": f"...hmm? Yeh kaunsa fake Article bol ke meri neend kharab ki? Minus 6 points lagao ispe."
+            }
+        elif len(turn.event_text.split()) > 6:
+            score_delta[speaker] = 3
+            score_reason = "Well reasoned submission"
+            sound = SoundEffect.NONE
+            emotion = JudgeEmotion.THINKING
+            lines = {
+                "STRICT": "Tark theek hai, lekin proof aur context pe dhyan do. Next round me prove karna.",
+                "SARCASTIC": "Theek-thaak bola hai. Ab dekhte hain dusre counsel iska kya band bajate hain.",
+                "FILMY": "Awaaz me dam hai! Par yaad rakhna, yeh court jajbaat se nahi, saboot se chalti hai!",
+                "SLEEPY": "...hmm, sun raha hu. Point thoda lamba tha par theek hai, continue."
+            }
+        else:
+            score_delta[speaker] = -3
+            score_reason = "Vague / rambling statement"
+            emotion = JudgeEmotion.AMUSED
+            lines = {
+                "STRICT": "Yeh kya ek line ka jawab hai? Yeh court hai, canteen nahi. Elaborate karo.",
+                "SARCASTIC": "Itna chhota argument? Lagta hai lawyer sahab homework karna bhool gaye.",
+                "FILMY": "Aadha sach poore jhooth se zyada khatarnak hota hai! Poori baat kaho!",
+                "SLEEPY": "...itna hi tha? Isse toh behtar tha mai so hi raha hota."
+            }
+
+    # B. OBJECTION EVENT
+    elif turn.event_type == "OBJECTION":
+        is_sustained = any(k in turn.event_text.lower() for k in ["relevance", "hearsay", "speculative", "speculation", "fake", "ground"])
+        if is_sustained:
+            ruling = "SUSTAINED"
+            score_delta[speaker] = 5
+            score_delta[other] = -3
+            score_reason = "Objection Sustained"
+            sound = SoundEffect.OBJECTION
+            screen_shake = True
+            emotion = JudgeEmotion.ANGRY
+            lines = {
+                "STRICT": "Objection SUSTAINED! Record se hatao yeh hawayi baat. Counsel, seedhe facts pe aao.",
+                "SARCASTIC": "Objection SUSTAINED! Shukr hai kisi ne toh is filmi debate ko roka. Points cut kar diye.",
+                "FILMY": "Objection SUSTAINED! Yeh courtroom hai, Natraj theater nahi! Offending remark struck out!",
+                "SLEEPY": "*bangs desk* Haan haan, SUSTAINED! Itna shor mat machao, chup chap line pe aao."
+            }
+        else:
+            ruling = "OVERRULED"
+            score_delta[speaker] = -5
+            score_reason = "Frivolous objection"
+            sound = SoundEffect.GAVEL
+            emotion = JudgeEmotion.AMUSED
+            lines = {
+                "STRICT": "Objection OVERRULED. Faltu interruption ke liye minus 5. Counsel ko bolne do.",
+                "SARCASTIC": "Objection OVERRULED! Bas timepass karne ke liye khade mat ho jaya karo.",
+                "FILMY": "Objection OVERRULED! Hero ko apni baat poori karne do, beech me entry mat maaro!",
+                "SLEEPY": "...hnnn? OVERRULED. Faltu me neend kharab mat kiya karo, proceed."
+            }
+
+    # C. TIMEOUT EVENT
+    elif turn.event_type == "TIMEOUT":
+        score_delta[speaker] = -3
+        score_reason = "Turn timed out"
+        sound = SoundEffect.GAVEL
+        emotion = JudgeEmotion.ANGRY
+        lines = {
+            "STRICT": "Time khatam! Court ka waqt qeemti hai, agle counsel ko floor do.",
+            "SARCASTIC": "Aur socho ghante bhar! Timer tick kar raha tha, attention nahi. Next!",
+            "FILMY": "Kanoon ke haath lambe hote hain par timer sirf 60 second ka hota hai! Floor transferred!",
+            "SLEEPY": "...arre timer baj gaya? Chalo agle bande ki baari, shuru karo."
+        }
+
+    # D. VERDICT PHASE
+    elif turn.phase == "VERDICT" or turn.event_type == "VERDICT":
+        ruling = "VERDICT"
+        sound = SoundEffect.DRUMROLL
+        screen_shake = True
+        emotion = JudgeEmotion.IMPRESSED
+        winner = "PETITIONER" if turn.petitioner_score >= turn.respondent_score else "RESPONDENT"
+        lines = {
+            "STRICT": "Dono pakshon ke arguments aur constitutional provisions ko parkhne ke baad, yeh adalat antim faisla sunati hai.",
+            "SARCASTIC": "Boht dhuandhar behes hui, ab suspense khatam karne ka waqt aa gaya hai. Faisla suniye!",
+            "FILMY": "Tareekh pe tareekh ka silsila khatam! Ab aayega antim kanooni faisla!",
+            "SLEEPY": "*wakes up* Chalo final verdict ka time aa gaya. Sab chup ho jao aur dhyan se suno."
+        }
+        verdict_payload = VerdictPayload(
+            winner=winner,
+            summary=f"Case decided on constitutional merits favoring {winner.capitalize()}.",
+            key_articles=[r.article_number for r in retrieved[:2]] if retrieved else ["Article 21", "Article 14"],
+            closing_line=f"Adalat ka yeh faisla antim aur sarvashreshth hai. Court adjourned!"
+        )
+        return TurnReactionOutput(
+            judge_line=lines.get(persona, lines["STRICT"]),
+            ruling=ruling,
+            score_delta=score_delta,
+            score_reason=score_reason,
+            article_check=ArticleCheck(cited=cited_art, status=article_status),
+            effects=JudgeEffects(sound=sound, screen_shake=screen_shake, badge=badge, judge_emotion=emotion),
+            gallery=gallery,
+            verdict=verdict_payload
+        )
+
+    else:
+        lines = {
+            "STRICT": "Adalat ki karwayi shuru ki jaye.",
+            "SARCASTIC": "Dekhte hain aaj kaun kitna padh ke aaya hai.",
+            "FILMY": "Yeh court kanoon ke dastooro par chalegi!",
+            "SLEEPY": "...shuru karo bhai, mai sun raha hu."
+        }
+
+    return TurnReactionOutput(
+        judge_line=lines.get(persona, lines["STRICT"]),
+        ruling=ruling,
+        score_delta=score_delta,
+        score_reason=score_reason,
+        article_check=ArticleCheck(cited=cited_art, status=article_status),
+        effects=JudgeEffects(sound=sound, screen_shake=screen_shake, badge=badge, judge_emotion=emotion),
+        gallery=gallery,
+        verdict=None
     )

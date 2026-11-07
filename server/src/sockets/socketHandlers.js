@@ -1,5 +1,5 @@
 import { roomStore } from "../models/roomStore.js";
-import { requestJudgeObjection, requestJudgeQuestion } from "../services/aiJudgeBridge.js";
+import { requestJudgeObjection, requestJudgeQuestion, requestTurnReaction } from "../services/aiJudgeBridge.js";
 
 export function registerSocketHandlers(io, stateMachine) {
   io.on("connection", (socket) => {
@@ -80,6 +80,51 @@ export function registerSocketHandlers(io, stateMachine) {
         type: "argument",
         metadata: { phase: room.phase, turnIndex: room.turnIndex }
       });
+
+      // Call AI Judge Reaction if in AI Judge mode
+      if (room.judgeMode !== "human") {
+        try {
+          const reaction = await requestTurnReaction({
+            namespace_id: room.constitutionId,
+            persona: room.judgePersona || "STRICT",
+            phase: room.phase,
+            petitioner_name: room.participants.petitioner.name,
+            petitioner_score: room.participants.petitioner.credibility,
+            respondent_name: room.participants.respondent.name,
+            respondent_score: room.participants.respondent.credibility,
+            event_type: "SUBMISSION",
+            event_text: text,
+            speaker_role: currentSide,
+            transcript: room.caseData.transcript.map((t) => `${t.speaker}: ${t.text}`).slice(-8),
+            seconds_left: room.turnSecondsRemaining || 45
+          });
+
+          // Apply score deltas
+          if (reaction && reaction.score_delta) {
+            const pDelta = reaction.score_delta.petitioner || 0;
+            const rDelta = reaction.score_delta.respondent || 0;
+            room.participants.petitioner.credibility = Math.min(Math.max(room.participants.petitioner.credibility + pDelta, 0), 100);
+            room.participants.respondent.credibility = Math.min(Math.max(room.participants.respondent.credibility + rDelta, 0), 100);
+          }
+
+          // Add Judge reaction line to transcript
+          roomStore.addTranscript(roomId, {
+            speaker: `Judge (${room.judgePersona})`,
+            side: "judge",
+            text: reaction.judge_line,
+            type: "commentary",
+            metadata: reaction
+          });
+
+          io.to(roomId).emit("turn:reaction", {
+            reaction,
+            speaker: speakerName,
+            side: currentSide
+          });
+        } catch (err) {
+          console.warn("[Turn Reaction] Non-fatal reaction error:", err.message);
+        }
+      }
 
       // Advance to next turn in the round
       stateMachine.advanceTurn(roomId, false);

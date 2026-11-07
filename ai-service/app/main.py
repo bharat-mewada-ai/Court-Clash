@@ -16,9 +16,16 @@ from app.schemas.judge import (
     JudgeQuestionInput,
     JudgeQuestionOutput,
     JudgeObjectionInput,
-    JudgeObjectionOutput
+    JudgeObjectionOutput,
+    TurnEventInput,
+    TurnReactionOutput
 )
-from app.services.judge_engine import judge_case, generate_judge_question, evaluate_objection
+from app.services.judge_engine import (
+    judge_case,
+    generate_judge_question,
+    evaluate_objection,
+    generate_turn_reaction
+)
 from app.rag.vector_store import vector_store
 
 INDIAN_CONST_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "indian_constitution.json")
@@ -163,4 +170,18 @@ def judge_objection_endpoint(payload: JudgeObjectionInput):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error evaluating objection: {str(e)}"
+        )
+
+@app.post("/judge/turn-reaction", response_model=TurnReactionOutput)
+def judge_turn_reaction_endpoint(payload: TurnEventInput):
+    """
+    Generates rich Hinglish judicial commentary, score deltas, sound/visual effects,
+    and college crowd gallery reactions for each turn.
+    """
+    try:
+        return generate_turn_reaction(payload)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating turn reaction: {str(e)}"
         )

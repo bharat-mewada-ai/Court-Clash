@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TopBar } from '../components/courtroom/TopBar.jsx';
 import { PartyCard } from '../components/courtroom/PartyCard.jsx';
 import { Bench } from '../components/courtroom/Bench.jsx';
+import { GalleryFeed } from '../components/courtroom/GalleryFeed.jsx';
 import { ArgumentBar } from '../components/courtroom/ArgumentBar.jsx';
 import { JudgeControls } from '../components/courtroom/JudgeControls.jsx';
 import { socketService } from '../services/socketClient.js';
@@ -65,6 +66,13 @@ export function LiveCourtroom({
   );
   const [activeObjectionRuling, setActiveObjectionRuling] = useState(null);
   const [legalAidArticles, setLegalAidArticles] = useState([]);
+  const [judgeEmotion, setJudgeEmotion] = useState("NEUTRAL");
+  const [screenShake, setScreenShake] = useState(false);
+  const [scoreToast, setScoreToast] = useState(null);
+  const [galleryFeed, setGalleryFeed] = useState([
+    { id: "g1", user: "Rohan_NLU", text: "Bench strictly rules pe chal rahi hai aaj 🔥" },
+    { id: "g2", user: "Pooja_Law", text: "Dekhte hain citation kitni solid aati hai! ⚖️" }
+  ]);
 
   useEffect(() => {
     const socket = socketService.connect();
@@ -153,6 +161,65 @@ export function LiveCourtroom({
       setLegalAidArticles(articles || []);
     });
 
+    // 5f. AI Judge Turn Reaction (Hinglish Judge + Crowd Reactions + Badges)
+    socket.on("turn:reaction", ({ reaction, speaker, side }) => {
+      if (!reaction) return;
+
+      // 1. Update Judge speech line
+      if (reaction.judge_line) {
+        setJudgeSpeech(reaction.judge_line);
+      }
+
+      // 2. Play Sound Effect
+      if (reaction.effects?.sound) {
+        soundEffects.playReactionSound(reaction.effects.sound);
+      }
+
+      // 3. Trigger Screen Shake
+      if (reaction.effects?.screen_shake) {
+        setScreenShake(true);
+        setTimeout(() => setScreenShake(false), 500);
+      }
+
+      // 4. Update Judge Emotion
+      if (reaction.effects?.judge_emotion) {
+        setJudgeEmotion(reaction.effects.judge_emotion);
+      }
+
+      // 5. Update Audience Gallery Chatter
+      if (Array.isArray(reaction.gallery) && reaction.gallery.length > 0) {
+        setGalleryFeed((prev) => {
+          const newEntries = reaction.gallery.map((g, idx) => ({
+            id: `g_${Date.now()}_${idx}`,
+            user: g.user || "spectator",
+            text: g.text || ""
+          }));
+          return [...prev, ...newEntries].slice(-15);
+        });
+      }
+
+      // 6. Floating Score & Badge Toast
+      if (reaction.score_reason || (reaction.effects?.badge && reaction.effects.badge !== "NONE")) {
+        setScoreToast({
+          reason: reaction.score_reason || "Oral submission evaluated",
+          badge: reaction.effects?.badge || "NONE",
+          delta: reaction.score_delta || null,
+          status: reaction.article_check?.status || "NONE"
+        });
+        setTimeout(() => {
+          setScoreToast(null);
+        }, 5500);
+      }
+
+      // 7. Check if verdict triggered
+      if (reaction.ruling === "VERDICT" && reaction.verdict) {
+        soundEffects.playVerdictFanfare();
+        setTimeout(() => {
+          onViewVerdict(reaction.verdict);
+        }, 2000);
+      }
+    });
+
     // 6. Verdict Ready
     socket.on("verdict:ready", ({ verdict }) => {
       soundEffects.playGavelStrike();
@@ -171,6 +238,7 @@ export function LiveCourtroom({
       socket.off("judge:gavel-struck");
       socket.off("judge:objection-pending");
       socket.off("judge:legal-aid-ready");
+      socket.off("turn:reaction");
       socket.off("verdict:ready");
     };
   }, [roomId, myName, mySide, judgeMode, constitutionId, judgePersona, turnDuration, onViewVerdict]);
@@ -198,6 +266,7 @@ export function LiveCourtroom({
 
   return (
     <div
+      className={screenShake ? "screen-shake" : ""}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -205,9 +274,74 @@ export function LiveCourtroom({
         maxWidth: "1400px",
         margin: "0 auto",
         padding: "16px 24px",
-        width: "100%"
+        width: "100%",
+        position: "relative"
       }}
     >
+      {/* Floating Badges & Turn Reaction Toast */}
+      {scoreToast && (
+        <div
+          className="animate-pop-badge"
+          style={{
+            position: "fixed",
+            top: "84px",
+            right: "24px",
+            zIndex: 9999,
+            backgroundColor:
+              scoreToast.badge === "BLUFF_CAUGHT"
+                ? "rgba(255, 93, 115, 0.95)"
+                : scoreToast.badge === "ARTICLE_MASTER"
+                ? "rgba(61, 219, 176, 0.95)"
+                : "rgba(42, 37, 102, 0.95)",
+            border: `2px solid ${
+              scoreToast.badge === "BLUFF_CAUGHT"
+                ? "var(--accent-coral)"
+                : scoreToast.badge === "ARTICLE_MASTER"
+                ? "var(--accent-mint)"
+                : "var(--accent-gold)"
+            }`,
+            borderRadius: "var(--radius-md)",
+            padding: "12px 18px",
+            boxShadow: "0 8px 30px rgba(0,0,0,0.5)",
+            backdropFilter: "blur(8px)",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            maxWidth: "360px"
+          }}
+        >
+          <span style={{ fontSize: "1.8rem" }}>
+            {scoreToast.badge === "BLUFF_CAUGHT"
+              ? "🚨"
+              : scoreToast.badge === "ARTICLE_MASTER"
+              ? "🏆"
+              : scoreToast.badge === "SMOOTH_TALKER"
+              ? "🗣️"
+              : "⚖️"}
+          </span>
+          <div>
+            <div
+              style={{
+                fontWeight: "700",
+                fontSize: "0.88rem",
+                color:
+                  scoreToast.badge === "BLUFF_CAUGHT"
+                    ? "#FFFFFF"
+                    : "var(--accent-gold)",
+                letterSpacing: "0.4px"
+              }}
+            >
+              {scoreToast.badge !== "NONE"
+                ? scoreToast.badge.replace("_", " ")
+                : "JUDICIAL ASSESSMENT"}
+            </div>
+            <div style={{ fontSize: "0.82rem", color: "var(--text-primary)", marginTop: "2px" }}>
+              {scoreToast.reason}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 1. Top Bar */}
       <TopBar
         caseTitle={roomState.caseData.caseTitle}
@@ -304,16 +438,20 @@ export function LiveCourtroom({
           />
         </div>
 
-        {/* Center Column: Presiding Bench */}
-        <Bench
-          judgePersona={roomState.judgePersona}
-          judgeMode={roomState.judgeMode}
-          judgeName={roomState.participants.judge?.name || "Hon'ble Judge"}
-          isHumanJudge={roomState.participants.judge?.isHuman || judgeMode === "human"}
-          judgeStatement={judgeSpeech}
-          articlesInPlay={roomState.caseData.articlesInPlay}
-          transcript={roomState.caseData.transcript}
-        />
+        {/* Center Column: Presiding Bench & Live Gallery Chatter */}
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+          <Bench
+            judgePersona={roomState.judgePersona}
+            judgeMode={roomState.judgeMode}
+            judgeName={roomState.participants.judge?.name || "Hon'ble Judge"}
+            isHumanJudge={roomState.participants.judge?.isHuman || judgeMode === "human"}
+            judgeStatement={judgeSpeech}
+            judgeEmotion={judgeEmotion}
+            articlesInPlay={roomState.caseData.articlesInPlay}
+            transcript={roomState.caseData.transcript}
+          />
+          <GalleryFeed reactions={galleryFeed} />
+        </div>
 
         {/* Right Column: Respondent Card (280px minimum) */}
         <div style={{ flex: "0 0 280px", maxWidth: "340px", width: "100%" }}>

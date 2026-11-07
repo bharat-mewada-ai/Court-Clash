@@ -152,6 +152,100 @@ class SoundService {
       osc.stop(now + idx * 0.12 + 0.8);
     });
   }
+
+  // 5. Drumroll Suspense
+  playDrumroll() {
+    if (this.muted) return;
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    for (let i = 0; i < 8; i++) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(80 + i * 4, now + i * 0.08);
+      gain.gain.setValueAtTime(0.2 + (i / 8) * 0.4, now + i * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.07);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + i * 0.08);
+      osc.stop(now + i * 0.08 + 0.07);
+    }
+  }
+
+  // 6. Sleepy Judge Snore
+  playSnore() {
+    if (this.muted) return;
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(60, now);
+    osc.frequency.linearRampToValueAtTime(80, now + 0.6);
+    osc.frequency.linearRampToValueAtTime(50, now + 1.2);
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 1.2);
+  }
+
+  // 7. Tense Heartbeat (Dual low thumps)
+  playHeartbeat() {
+    if (this.muted) return;
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    [0, 0.22].forEach((offset) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(65, now + offset);
+      osc.frequency.exponentialRampToValueAtTime(35, now + offset + 0.18);
+      gain.gain.setValueAtTime(0.6, now + offset);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.18);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + offset);
+      osc.stop(now + offset + 0.18);
+    });
+  }
+
+  // 8. Audience Cheer Fanfare
+  playCheer() {
+    if (this.muted) return;
+    this.playVerdictFanfare();
+  }
+
+  // Dispatcher for turn reaction sounds
+  playReactionSound(soundName) {
+    if (!soundName || soundName === "NONE") return;
+    switch (soundName.toUpperCase()) {
+      case "GAVEL":
+        this.playGavelStrike();
+        break;
+      case "OBJECTION":
+        this.playObjection();
+        break;
+      case "DRUMROLL":
+        this.playDrumroll();
+        break;
+      case "HEARTBEAT":
+        this.playHeartbeat();
+        break;
+      case "SNORE":
+        this.playSnore();
+        break;
+      case "CHEER":
+        this.playCheer();
+        break;
+      default:
+        break;
+    }
+  }
 }
 
 export const soundEffects = new SoundService();

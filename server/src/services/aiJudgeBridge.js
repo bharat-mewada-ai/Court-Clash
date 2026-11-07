@@ -117,3 +117,34 @@ export async function requestJudgeObjection(objectionPayload) {
   };
 }
 
+export async function requestTurnReaction(turnPayload) {
+  try {
+    const response = await fetch(`${AI_SERVICE_URL}/judge/turn-reaction`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(turnPayload)
+    });
+
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (err) {
+    console.warn(`[AI Judge Bridge] Turn reaction error: ${err.message}`);
+  }
+
+  // Fallback
+  const speaker = turnPayload.speaker_role || "petitioner";
+  return {
+    judge_line: "Submissions noted on the judicial record. Let us hear counter-submissions.",
+    ruling: "NONE",
+    score_delta: { [speaker]: 2 },
+    score_reason: "Argument submitted",
+    article_check: { cited: null, status: "NONE" },
+    effects: { sound: "NONE", screen_shake: false, badge: "NONE", judge_emotion: "THINKING" },
+    gallery: [
+      { user: "@delhi_lawyer", text: "Accha point bola bhai! 🔥" }
+    ],
+    verdict: null
+  };
+}
+

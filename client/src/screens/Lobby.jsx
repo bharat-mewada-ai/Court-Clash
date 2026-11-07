@@ -54,22 +54,32 @@ export function Lobby({ onEnterCourt, onOpenEditor }) {
 
   const personas = [
     {
-      id: "Strict",
+      id: "STRICT",
       title: "Strict Judge",
-      badge: "High Burden of Proof",
-      description: "Demands rigorous evidentiary proof and sternly adheres to procedural formalities. No emotional pleas."
+      badge: "No-Nonsense & Sharp",
+      quote: "\"Yeh court hai, chai ki tapri nahi. Point pe aao.\"",
+      description: "Formal, authoritative, short sentences. Immediately disciplines sloppy arguments or emotional theatrics."
     },
     {
-      id: "Chill",
-      title: "Chill Judge",
-      badge: "Conversational & Witty",
-      description: "Uses relatable everyday metaphors and friendly banter, yet remains firmly grounded in constitutional text."
+      id: "SARCASTIC",
+      title: "Sarcastic Judge",
+      badge: "Dry Wit & Savagery",
+      quote: "\"Wah, kitni gehri baat. Ab isme koi Article hai ya sirf vibes?\"",
+      description: "Dry wit. Roasts weak arguments politely but savagely while upholding constitutional grounding."
     },
     {
-      id: "Textualist",
-      title: "Textualist Judge",
-      badge: "Literal Phrasing",
-      description: "Interprets the exact grammar, statutory words, and literal punctuation of the cited clause without speculation."
+      id: "FILMY",
+      title: "Filmy Judge",
+      badge: "Bollywood Drama",
+      quote: "\"Tareekh pe tareekh! Yeh court emotion se nahi, saboot se chalti hai!\"",
+      description: "Full cinematic courtroom energy. Dramatic gavel bangers, high stakes, and unforgettable punchlines."
+    },
+    {
+      id: "SLEEPY",
+      title: "Sleepy Judge",
+      badge: "Drowsy Veteran",
+      quote: "\"...hmm? haan, continue. Zzz... Wakes up sharply on a good point.\"",
+      description: "Occasional mid-sentence dozing. Hard to impress, but rewards brilliant legal citations with sudden excitement."
     }
   ];
 
