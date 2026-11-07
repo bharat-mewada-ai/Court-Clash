@@ -1,0 +1,24 @@
+{
+  "name": "court-clash-server",
+  "version": "1.0.0",
+  "description": "Court Clash Authoritative Game Server with Express, Socket.IO, and State Machine",
+  "main": "src/app.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "node --watch src/app.js",
+    "test": "node test/socket_flow_test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mongoose": "^9.11.4",
+    "socket.io": "^4.8.1",
+    "swagger-ui-express": "^5.0.1",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.1"
+  }
+}

@@ -1,0 +1,180 @@
+:root {
+  /* Brand Design Tokens */
+  --bg-primary: #1B1740;
+  --card-bg: #2A2566;
+  --card-subtle: #221E54;
+  --chip-track: #3A3380;
+  --chip-track-light: #484099;
+  --text-primary: #FFFFFF;
+  --text-muted: #C9C6F0;
+  
+  /* Accent Colors */
+  --accent-gold: #FFC53D;      /* Judge & Primary Actions */
+  --accent-gold-hover: #E6AE2E;
+  --accent-coral: #FF5D73;     /* Petitioner & Objections */
+  --accent-coral-hover: #E6475D;
+  --accent-mint: #3DDBB0;      /* Respondent & Articles in play */
+  --accent-mint-hover: #2EC49A;
+  
+  /* Text on accent buttons */
+  --text-on-accent: #1B1740;
+
+  /* Typography & Geometry */
+  --font-family: 'Fredoka', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --touch-target: 44px;
+  
+  /* Elevation & Shadows */
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-glow-gold: 0 0 20px rgba(255, 197, 61, 0.3);
+  --shadow-glow-coral: 0 0 20px rgba(255, 93, 115, 0.3);
+  --shadow-glow-mint: 0 0 20px rgba(61, 219, 176, 0.3);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--chip-track);
+  border-radius: var(--radius-sm);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--chip-track-light);
+}
+
+/* Animations */
+@keyframes pulseGlow {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.03); opacity: 0.9; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes gavelStrike {
+  0% { transform: rotate(0deg); }
+  30% { transform: rotate(-35deg); }
+  70% { transform: rotate(15deg); }
+  85% { transform: rotate(-5deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s infinite ease-in-out;
+}
+
+/* ========================================================
+   Mobile & Responsive Stacking (Section 5)
+   ======================================================== */
+@media (max-width: 900px) {
+  .courtroom-columns {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+
+  .courtroom-columns > div {
+    max-width: 100% !important;
+    flex: 1 1 auto !important;
+  }
+
+  /* ArgumentBar wraps cleanly on tablets and mobile */
+  .argument-bar-form {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+}
+
+@media (max-width: 600px) {
+  body {
+    font-size: 14px;
+  }
+
+  header {
+    padding: 12px 14px !important;
+  }
+
+  .custom-button {
+    min-height: 48px !important; /* Ensure large touch target on phone */
+    width: 100%;
+  }
+
+  .argument-bar-buttons {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  .argument-bar-buttons > button:last-child {
+    grid-column: span 2;
+  }
+}
+
+/* ========================================================
+   Print to PDF Stylesheet (Section 9)
+   ======================================================== */
+@media print {
+  body {
+    background-color: #FFFFFF !important;
+    color: #111111 !important;
+  }
+
+  .court-clash-app {
+    background: #FFFFFF !important;
+    color: #111111 !important;
+  }
+
+  header, footer, button, .custom-button, .no-print {
+    display: none !important;
+  }
+
+  .verdict-printable-card {
+    border: 3px double #333333 !important;
+    box-shadow: none !important;
+    background: #FFFFFF !important;
+    color: #111111 !important;
+    padding: 24px !important;
+  }
+
+  .verdict-printable-card * {
+    color: #111111 !important;
+    text-shadow: none !important;
+  }
+}

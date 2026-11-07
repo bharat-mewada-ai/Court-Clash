@@ -1,0 +1,32 @@
+{
+  "CLIENT_TO_SERVER": {
+    "ROOM_JOIN": "room:join",
+    "CASE_FILE": "case:file",
+    "ARGUMENT_SUBMIT": "argument:submit",
+    "OBJECTION_RAISE": "objection:raise",
+    "EVIDENCE_ADD": "evidence:add",
+    "ARTICLE_CITE": "article:cite"
+  },
+  "SERVER_TO_CLIENT": {
+    "ROOM_STATE": "room:state",
+    "TURN_START": "turn:start",
+    "TURN_TICK": "turn:tick",
+    "JUDGE_QUESTION": "judge:question",
+    "JUDGE_RULING_ON_OBJECTION": "judge:ruling-on-objection",
+    "VERDICT_READY": "verdict:ready",
+    "ERROR": "room:error"
+  },
+  "PHASES": {
+    "LOBBY": "LOBBY",
+    "FILING": "FILING",
+    "ROUND_1_OPENING": "ROUND_1_OPENING",
+    "ROUND_2_REBUTTAL": "ROUND_2_REBUTTAL",
+    "ROUND_3_CLOSING": "ROUND_3_CLOSING",
+    "DELIBERATION": "DELIBERATION",
+    "VERDICT_REVEALED": "VERDICT_REVEALED"
+  },
+  "SIDES": {
+    "PETITIONER": "petitioner",
+    "RESPONDENT": "respondent"
+  }
+}
