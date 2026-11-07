@@ -3,6 +3,7 @@ import { TopBar } from '../components/courtroom/TopBar.jsx';
 import { PartyCard } from '../components/courtroom/PartyCard.jsx';
 import { Bench } from '../components/courtroom/Bench.jsx';
 import { ArgumentBar } from '../components/courtroom/ArgumentBar.jsx';
+import { JudgeControls } from '../components/courtroom/JudgeControls.jsx';
 import { socketService } from '../services/socketClient.js';
 import { soundEffects } from '../services/soundEffects.js';
 
@@ -10,20 +11,27 @@ export function LiveCourtroom({
   roomId = "demo-room",
   mySide = "petitioner",
   myName = "Advocate",
+  judgeMode = "ai",
+  constitutionId = "indian_constitution",
+  judgePersona = "Strict",
+  turnDuration = 60,
   onLeaveCourt,
   onViewVerdict
 }) {
   const [roomState, setRoomState] = useState({
     roomId,
-    constitutionId: "indian_constitution",
-    judgePersona: "Strict",
+    constitutionId,
+    judgePersona,
+    judgeMode,
+    pendingObjection: null,
     phase: "ROUND_1_OPENING",
     turnIndex: 1,
     activeTurnSide: "petitioner",
-    turnSecondsRemaining: 60,
+    turnSecondsRemaining: turnDuration,
     participants: {
       petitioner: { name: myName, credibility: 85, connected: true },
-      respondent: { name: "Respondent Counsel", credibility: 85, connected: true }
+      respondent: { name: "Respondent Counsel", credibility: 85, connected: true },
+      judge: { name: "Hon'ble Judge", isHuman: judgeMode === "human", connected: true }
     },
     caseData: {
       caseTitle: "State University v. Aarav Sharma (Campus Free Expression)",
@@ -56,18 +64,28 @@ export function LiveCourtroom({
     "Counsel, you may present your oral submissions. You have 60 seconds."
   );
   const [activeObjectionRuling, setActiveObjectionRuling] = useState(null);
+  const [legalAidArticles, setLegalAidArticles] = useState([]);
 
   useEffect(() => {
     const socket = socketService.connect();
 
-    // 1. Join room
-    socketService.joinRoom(roomId, myName, mySide);
+    // 1. Join room with judgeMode metadata
+    socketService.joinRoom(roomId, myName, mySide, {
+      judgeMode,
+      constitutionId,
+      judgePersona,
+      turnDuration
+    });
 
     // 2. Room State Updates
     socket.on("room:state", (updatedState) => {
       setRoomState((prev) => ({
         ...prev,
         ...updatedState,
+        participants: {
+          ...prev.participants,
+          ...updatedState.participants
+        },
         caseData: {
           ...prev.caseData,
           ...updatedState.caseData
@@ -94,7 +112,7 @@ export function LiveCourtroom({
     socket.on("turn:start", ({ phase, activeTurnSide, speakerName }) => {
       soundEffects.playTurnDing();
       setJudgeSpeech(
-        `Floor transferred to ${speakerName} (${activeTurnSide.toUpperCase()}) for ${phase}. Proceed.`
+        `Floor transferred to ${speakerName} (${activeTurnSide?.toUpperCase()}) for ${phase}. Proceed.`
       );
     });
 
@@ -118,6 +136,23 @@ export function LiveCourtroom({
       );
     });
 
+    // 5c. Human Judge Gavel Struck
+    socket.on("judge:gavel-struck", ({ judgeName }) => {
+      soundEffects.playGavelStrike();
+      setJudgeSpeech(`*ORDER IN THE COURT!* Hon'ble Magistrate (${judgeName}) calls the courtroom to order!`);
+    });
+
+    // 5d. Human Judge Objection Pending
+    socket.on("judge:objection-pending", (pendingData) => {
+      soundEffects.playObjection();
+      setJudgeSpeech(`OBJECTION RAISED! Awaiting official ruling from Presiding Bench.`);
+    });
+
+    // 5e. Legal Aid Articles Received
+    socket.on("judge:legal-aid-ready", ({ articles }) => {
+      setLegalAidArticles(articles || []);
+    });
+
     // 6. Verdict Ready
     socket.on("verdict:ready", ({ verdict }) => {
       soundEffects.playGavelStrike();
@@ -132,9 +167,13 @@ export function LiveCourtroom({
       socket.off("turn:tick");
       socket.off("turn:start");
       socket.off("judge:ruling-on-objection");
+      socket.off("judge:question");
+      socket.off("judge:gavel-struck");
+      socket.off("judge:objection-pending");
+      socket.off("judge:legal-aid-ready");
       socket.off("verdict:ready");
     };
-  }, [roomId, myName, mySide, onViewVerdict]);
+  }, [roomId, myName, mySide, judgeMode, constitutionId, judgePersona, turnDuration, onViewVerdict]);
 
   // Handlers
   const handleSubmitArgument = (text) => {
@@ -268,6 +307,9 @@ export function LiveCourtroom({
         {/* Center Column: Presiding Bench */}
         <Bench
           judgePersona={roomState.judgePersona}
+          judgeMode={roomState.judgeMode}
+          judgeName={roomState.participants.judge?.name || "Hon'ble Judge"}
+          isHumanJudge={roomState.participants.judge?.isHuman || judgeMode === "human"}
           judgeStatement={judgeSpeech}
           articlesInPlay={roomState.caseData.articlesInPlay}
           transcript={roomState.caseData.transcript}
@@ -286,14 +328,29 @@ export function LiveCourtroom({
         </div>
       </div>
 
-      {/* 3. Bottom Argument Bar */}
-      <ArgumentBar
-        isMyTurn={isMyTurn}
-        currentSide={mySide}
-        onSubmitArgument={handleSubmitArgument}
-        onRaiseObjection={handleRaiseObjection}
-        onCiteArticle={handleCiteArticle}
-      />
+      {/* 3. Bottom Controls: Judge Controls if mySide === 'judge', else Counsel ArgumentBar */}
+      {mySide === "judge" ? (
+        <JudgeControls
+          roomId={roomId}
+          judgeName={myName}
+          phase={roomState.phase}
+          pendingObjection={roomState.pendingObjection}
+          onStrikeGavel={() => socketService.strikeGavel(roomId)}
+          onSubmitQuestion={(q) => socketService.submitJudgeQuestion(roomId, q)}
+          onRuleObjection={(ruling, exp) => socketService.ruleObjection(roomId, ruling, exp)}
+          onSubmitVerdict={(verdictData) => socketService.submitJudgeVerdict(roomId, verdictData)}
+          onRequestLegalAid={() => socketService.requestLegalAid(roomId)}
+          legalAidArticles={legalAidArticles}
+        />
+      ) : (
+        <ArgumentBar
+          isMyTurn={isMyTurn}
+          currentSide={mySide}
+          onSubmitArgument={handleSubmitArgument}
+          onRaiseObjection={handleRaiseObjection}
+          onCiteArticle={handleCiteArticle}
+        />
+      )}
 
       {/* 4. Educational Disclaimer Footer */}
       <footer

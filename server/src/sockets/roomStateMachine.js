@@ -105,6 +105,20 @@ export class RoomStateMachine {
     room.phase = "DELIBERATION";
     room.activeTurnSide = null;
 
+    // Check if human judge is presiding
+    if (room.judgeMode === "human" && room.participants.judge.connected) {
+      roomStore.addTranscript(roomId, {
+        speaker: "Bailiff",
+        side: "system",
+        text: `All arguments concluded. The floor is handed over to Hon'ble Presiding Judge (${room.participants.judge.name}) to draft and deliver the official verdict.`,
+        type: "system"
+      });
+
+      this.broadcastState(roomId);
+      return; // Awaits human judge's verdict submission via judge:submit-verdict
+    }
+
+    // Automated AI Judge Deliberation
     roomStore.addTranscript(roomId, {
       speaker: "Bailiff",
       side: "system",

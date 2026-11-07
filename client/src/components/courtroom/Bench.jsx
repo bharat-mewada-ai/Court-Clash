@@ -4,6 +4,9 @@ import { Chip } from '../shared/Chip.jsx';
 
 export function Bench({
   judgePersona = "Strict",
+  judgeMode = "ai",
+  judgeName = "Hon'ble Judge",
+  isHumanJudge = false,
   judgeStatement = "Court is in session. Submissions must adhere strictly to the chosen constitutional rulebook.",
   articlesInPlay = [],
   transcript = []
@@ -63,13 +66,13 @@ export function Bench({
                 PRESIDING BENCH
               </h2>
               <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                AI Judicial Magistrate
+                {isHumanJudge ? `🧑‍⚖️ Human Magistrate (${judgeName})` : "AI Judicial Magistrate"}
               </span>
             </div>
           </div>
 
           <Chip variant="gold">
-            Persona: {judgePersona}
+            {isHumanJudge ? "Human Judge" : `Persona: ${judgePersona}`}
           </Chip>
         </div>
 

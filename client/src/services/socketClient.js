@@ -32,8 +32,8 @@ class SocketService {
     return this.socket;
   }
 
-  joinRoom(roomId, name, side) {
-    this.getSocket().emit("room:join", { roomId, name, side });
+  joinRoom(roomId, name, side, metadata = {}) {
+    this.getSocket().emit("room:join", { roomId, name, side, ...metadata });
   }
 
   fileCase(roomId, casePayload) {
@@ -46,6 +46,26 @@ class SocketService {
 
   raiseObjection(roomId, reason) {
     this.getSocket().emit("objection:raise", { roomId, reason });
+  }
+
+  ruleObjection(roomId, ruling, explanation) {
+    this.getSocket().emit("judge:rule-objection", { roomId, ruling, explanation });
+  }
+
+  strikeGavel(roomId) {
+    this.getSocket().emit("judge:strike-gavel", { roomId });
+  }
+
+  submitJudgeQuestion(roomId, question) {
+    this.getSocket().emit("judge:submit-question", { roomId, question });
+  }
+
+  submitJudgeVerdict(roomId, payload) {
+    this.getSocket().emit("judge:submit-verdict", { roomId, ...payload });
+  }
+
+  requestLegalAid(roomId) {
+    this.getSocket().emit("judge:request-legal-aid", { roomId });
   }
 
   addEvidence(roomId, description) {

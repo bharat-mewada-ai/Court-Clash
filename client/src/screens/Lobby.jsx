@@ -6,6 +6,7 @@ import { Chip } from '../components/shared/Chip.jsx';
 export function Lobby({ onEnterCourt, onOpenEditor }) {
   const [userName, setUserName] = useState("Aarav Sharma");
   const [selectedSide, setSelectedSide] = useState("petitioner");
+  const [judgeMode, setJudgeMode] = useState("ai"); // 'ai' or 'human'
   const [selectedConstitution, setSelectedConstitution] = useState("indian_constitution");
   const [selectedPersona, setSelectedPersona] = useState("Strict");
   const [turnDuration, setTurnDuration] = useState(60);
@@ -83,8 +84,9 @@ export function Lobby({ onEnterCourt, onOpenEditor }) {
   const handleStartCourt = () => {
     onEnterCourt({
       roomId,
-      userName: userName.trim() || "Advocate",
+      userName: userName.trim() || (selectedSide === "judge" ? "Hon'ble Judge" : "Advocate"),
       side: selectedSide,
+      judgeMode,
       constitutionId: selectedConstitution,
       judgePersona: selectedPersona,
       turnDuration: Number(turnDuration)
@@ -169,14 +171,15 @@ export function Lobby({ onEnterCourt, onOpenEditor }) {
 
           <div>
             <label style={{ display: "block", fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "6px" }}>
-              Representing Side:
+              Your Courtroom Role:
             </label>
-            <div style={{ display: "flex", gap: "10px" }}>
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
               <button
                 type="button"
                 onClick={() => setSelectedSide("petitioner")}
                 style={{
                   flex: 1,
+                  minWidth: "120px",
                   minHeight: "var(--touch-target)",
                   borderRadius: "var(--radius-md)",
                   border: selectedSide === "petitioner" ? "2px solid var(--accent-coral)" : "1px solid var(--chip-track-light)",
@@ -199,6 +202,7 @@ export function Lobby({ onEnterCourt, onOpenEditor }) {
                 onClick={() => setSelectedSide("respondent")}
                 style={{
                   flex: 1,
+                  minWidth: "120px",
                   minHeight: "var(--touch-target)",
                   borderRadius: "var(--radius-md)",
                   border: selectedSide === "respondent" ? "2px solid var(--accent-mint)" : "1px solid var(--chip-track-light)",
@@ -215,6 +219,31 @@ export function Lobby({ onEnterCourt, onOpenEditor }) {
                 <UserIcon size={18} color={selectedSide === "respondent" ? "var(--accent-mint)" : "var(--text-muted)"} />
                 Respondent
               </button>
+
+              {judgeMode === "human" && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedSide("judge")}
+                  style={{
+                    flex: 1,
+                    minWidth: "130px",
+                    minHeight: "var(--touch-target)",
+                    borderRadius: "var(--radius-md)",
+                    border: selectedSide === "judge" ? "2px solid var(--accent-gold)" : "1px solid var(--chip-track-light)",
+                    backgroundColor: selectedSide === "judge" ? "rgba(255, 197, 61, 0.2)" : "var(--chip-track)",
+                    color: selectedSide === "judge" ? "var(--accent-gold)" : "var(--text-muted)",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px"
+                  }}
+                >
+                  <GavelIcon size={18} color={selectedSide === "judge" ? "var(--accent-gold)" : "var(--text-muted)"} />
+                  Presiding Judge
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -302,7 +331,7 @@ export function Lobby({ onEnterCourt, onOpenEditor }) {
         </div>
       </div>
 
-      {/* 3. Judge Persona Picker */}
+      {/* 3. Judge Authority & Mode */}
       <div
         style={{
           backgroundColor: "var(--card-bg)",
@@ -311,50 +340,126 @@ export function Lobby({ onEnterCourt, onOpenEditor }) {
           boxShadow: "var(--shadow-sm)",
           display: "flex",
           flexDirection: "column",
-          gap: "16px"
+          gap: "18px"
         }}
       >
         <div>
           <h2 style={{ fontSize: "1.2rem", fontWeight: "700", color: "var(--text-primary)" }}>
-            3. Presiding Judge Persona
+            3. Presiding Judicial Authority
           </h2>
           <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
-            Persona alters tone, style, and questioning strictness without ever compromising grounded citations.
+            Choose whether an automated AI Judge or a 3rd human participant will preside over the Bench.
           </p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "14px" }}>
-          {personas.map((p) => {
-            const isSelected = selectedPersona === p.id;
-            return (
-              <div
-                key={p.id}
-                onClick={() => setSelectedPersona(p.id)}
-                style={{
-                  backgroundColor: isSelected ? "rgba(255, 197, 61, 0.12)" : "var(--chip-track)",
-                  border: isSelected ? "2px solid var(--accent-gold)" : "1px solid var(--chip-track-light)",
-                  borderRadius: "var(--radius-md)",
-                  padding: "16px",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease"
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                  <GavelIcon size={18} color="var(--accent-gold)" />
-                  <h3 style={{ fontSize: "1.05rem", fontWeight: "700", color: "var(--text-primary)" }}>
-                    {p.title}
-                  </h3>
-                </div>
-                <span style={{ fontSize: "0.75rem", color: "var(--accent-gold)", fontWeight: "600", display: "block", marginBottom: "6px" }}>
-                  {p.badge}
-                </span>
-                <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: "1.4" }}>
-                  {p.description}
-                </p>
-              </div>
-            );
-          })}
+        {/* Mode Selector Tabs */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+          <div
+            onClick={() => setJudgeMode("ai")}
+            style={{
+              padding: "16px",
+              borderRadius: "var(--radius-md)",
+              cursor: "pointer",
+              border: judgeMode === "ai" ? "2px solid var(--accent-gold)" : "1px solid var(--chip-track-light)",
+              backgroundColor: judgeMode === "ai" ? "rgba(255, 197, 61, 0.15)" : "var(--chip-track)",
+              transition: "all 0.2s"
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+              <ScaleIcon size={20} color={judgeMode === "ai" ? "var(--accent-gold)" : "var(--text-muted)"} />
+              <h3 style={{ fontSize: "1rem", fontWeight: "700", color: "var(--text-primary)" }}>
+                🤖 AI Judge Mode (2-Player)
+              </h3>
+            </div>
+            <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: "1.4" }}>
+              Autonomous RAG judicial reasoning engine strictly applying constitutional law.
+            </p>
+          </div>
+
+          <div
+            onClick={() => {
+              setJudgeMode("human");
+            }}
+            style={{
+              padding: "16px",
+              borderRadius: "var(--radius-md)",
+              cursor: "pointer",
+              border: judgeMode === "human" ? "2px solid var(--accent-gold)" : "1px solid var(--chip-track-light)",
+              backgroundColor: judgeMode === "human" ? "rgba(255, 197, 61, 0.15)" : "var(--chip-track)",
+              transition: "all 0.2s"
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+              <GavelIcon size={20} color={judgeMode === "human" ? "var(--accent-gold)" : "var(--text-muted)"} />
+              <h3 style={{ fontSize: "1rem", fontWeight: "700", color: "var(--text-primary)" }}>
+                🧑‍⚖️ Human Judge Mode (3-Player)
+              </h3>
+            </div>
+            <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: "1.4" }}>
+              A real 3rd person presides on the Bench: bangs the gavel, rules on objections, and signs the verdict!
+            </p>
+          </div>
         </div>
+
+        {judgeMode === "ai" ? (
+          <div>
+            <h4 style={{ fontSize: "0.95rem", fontWeight: "700", color: "var(--accent-gold)", marginBottom: "10px" }}>
+              Select AI Judge Persona:
+            </h4>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "14px" }}>
+              {personas.map((p) => {
+                const isSelected = selectedPersona === p.id;
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => setSelectedPersona(p.id)}
+                    style={{
+                      backgroundColor: isSelected ? "rgba(255, 197, 61, 0.12)" : "var(--chip-track)",
+                      border: isSelected ? "2px solid var(--accent-gold)" : "1px solid var(--chip-track-light)",
+                      borderRadius: "var(--radius-md)",
+                      padding: "16px",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease"
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                      <GavelIcon size={18} color="var(--accent-gold)" />
+                      <h3 style={{ fontSize: "1.05rem", fontWeight: "700", color: "var(--text-primary)" }}>
+                        {p.title}
+                      </h3>
+                    </div>
+                    <span style={{ fontSize: "0.75rem", color: "var(--accent-gold)", fontWeight: "600", display: "block", marginBottom: "6px" }}>
+                      {p.badge}
+                    </span>
+                    <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: "1.4" }}>
+                      {p.description}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div
+            style={{
+              padding: "18px",
+              backgroundColor: "rgba(255, 197, 61, 0.08)",
+              borderRadius: "var(--radius-md)",
+              border: "1px dashed var(--accent-gold)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px"
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--accent-gold)", fontWeight: "700" }}>
+              <GavelIcon size={20} color="var(--accent-gold)" />
+              <span>3-Player Courtroom Chamber Active</span>
+            </div>
+            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: "1.5" }}>
+              Share your room invite link with <strong>2 friends</strong>. One friend will join as Petitioner, one as Respondent, and the third friend (or you) can select <strong>Presiding Judge</strong> in the profile section above to take the Bench.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* 4. Invite Link & Open Court Button */}

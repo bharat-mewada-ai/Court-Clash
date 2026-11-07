@@ -204,7 +204,14 @@ node server/test/phase6_custom_constitution_test.js
 In Phase 7, we brought game-feel, accessibility, and utility polish across the stack:
 
 ### Key Engineering Features:
-1. **Full Official Constitution of India (507 Articles & 1,383 Semantic Clauses)**:
+1. **3-Player Human Judge Mode (Peer-to-Peer Courtroom)**:
+   - In addition to the autonomous AI Judge, users can switch to **Human Judge Mode** where a 3rd person takes the Bench as the Presiding Magistrate!
+   - Human Judges possess full judicial controls:
+     - 🔨 **Gavel Strike**: Broadcasts live wooden gavel impacts and camera shake calling the court to order.
+     - 💬 **Counsel Interrogation**: Live in-trial question prompts directed at speaking advocates.
+     - ⚖️ **Objection Rulings**: Decides evidentiary objections (`SUSTAINED` / `OVERRULED`) shifting party credibilities in real time.
+     - 📜 **Judicial Verdict Suite**: Formulates the official decree with AI constitutional advisory assistance.
+2. **Full Official Constitution of India (507 Articles & 1,383 Semantic Clauses)**:
    - Completely populated from the official legislative corpus: covers Preamble, Part I through Part XXII, all fundamental rights (Articles 12–35), Directive Principles (Articles 36–51), Fundamental Duties (Article 51A), Union & State Executive, Judiciary (Supreme Court & High Courts), Emergency Provisions (Articles 352–360), and Constitutional Amendments (Article 368).
 2. **Supreme Court Landmark Precedents Dataset (`indian_case_law`)**:
    - Ingested landmark constitutional rulings (*Kesavananda Bharati*, *Maneka Gandhi*, *Puttaswamy Privacy*, *Navtej Johar 377*, *Shreya Singhal 66A*, *Vishaka*, *Indira Sawhney*, *Minerva Mills*, *Shayara Bano*, *S.R. Bommai*, *Olga Tellis*).

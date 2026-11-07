@@ -4,22 +4,31 @@ import { requestJudgeObjection, requestJudgeQuestion } from "../services/aiJudge
 export function registerSocketHandlers(io, stateMachine) {
   io.on("connection", (socket) => {
     // 1. Join Room
-    socket.on("room:join", ({ roomId, name, side }) => {
-      const room = roomStore.getRoom(roomId);
+    socket.on("room:join", ({ roomId, name, side, judgeMode, constitutionId, judgePersona, turnDuration }) => {
+      let room = roomStore.getRoom(roomId);
       if (!room) {
-        socket.emit("room:error", { message: `Room '${roomId}' not found.` });
-        return;
+        // Auto-create room if not already initialized
+        room = roomStore.createRoom({
+          roomId,
+          constitutionId: constitutionId || "indian_constitution",
+          judgePersona: judgePersona || "Strict",
+          judgeMode: judgeMode || "ai",
+          creatorName: name || "Counsel",
+          creatorSide: side || "petitioner",
+          turnDuration: turnDuration || 60
+        });
       }
 
       socket.join(roomId);
       const result = roomStore.joinRoom(roomId, { name, side, socketId: socket.id });
 
-      // Automatically advance to FILING phase if both parties are present and in LOBBY
-      if (
-        room.phase === "LOBBY" &&
-        room.participants.petitioner.connected &&
-        room.participants.respondent.connected
-      ) {
+      // Automatically advance to FILING phase when required parties are connected
+      const isHumanJudge = room.judgeMode === "human";
+      const readyToStart = isHumanJudge
+        ? (room.participants.petitioner.connected && room.participants.respondent.connected && room.participants.judge.connected)
+        : (room.participants.petitioner.connected && room.participants.respondent.connected);
+
+      if (room.phase === "LOBBY" && readyToStart) {
         stateMachine.startFilingPhase(roomId);
       } else {
         stateMachine.broadcastState(roomId);
@@ -76,7 +85,7 @@ export function registerSocketHandlers(io, stateMachine) {
       stateMachine.advanceTurn(roomId, false);
     });
 
-    // 4. Raise Objection (Evaluated by AI Judge with Credibility Adjustments)
+    // 4. Raise Objection (Evaluated by Human Judge or AI Judge)
     socket.on("objection:raise", async ({ roomId, reason }) => {
       const room = roomStore.getRoom(roomId);
       if (!room) return;
@@ -93,7 +102,31 @@ export function registerSocketHandlers(io, stateMachine) {
       const targetArgs = targetSide === "petitioner" ? room.caseData.petitionerArguments : room.caseData.respondentArguments;
       const targetArgument = targetArgs.slice(-1)[0] || "Oral submission in court";
 
-      // Call AI Judge Objection Evaluation
+      // 4a. If Human Judge mode is active and judge is connected -> pass to human judge
+      if (room.judgeMode === "human" && room.participants.judge.connected) {
+        room.pendingObjection = {
+          objectingSide,
+          targetSide,
+          reason: reason || "Improper submission",
+          targetArgument,
+          timestamp: Date.now()
+        };
+
+        roomStore.addTranscript(roomId, {
+          speaker,
+          side: objectingSide,
+          text: `OBJECTION! Ground: ${reason}. Awaiting Presiding Judge's ruling.`,
+          type: "objection"
+        });
+
+        if (room.participants.judge.socketId) {
+          io.to(room.participants.judge.socketId).emit("judge:objection-pending", room.pendingObjection);
+        }
+        stateMachine.broadcastState(roomId);
+        return;
+      }
+
+      // 4b. Automated AI Judge Objection Evaluation
       const rulingResult = await requestJudgeObjection({
         namespace_id: room.constitutionId,
         persona: room.judgePersona,
@@ -137,6 +170,159 @@ export function registerSocketHandlers(io, stateMachine) {
       });
 
       stateMachine.broadcastState(roomId);
+    });
+
+    // 4b. Human Judge Rules on Objection
+    socket.on("judge:rule-objection", ({ roomId, ruling, explanation }) => {
+      const room = roomStore.getRoom(roomId);
+      if (!room || !room.pendingObjection) return;
+
+      const { objectingSide, targetSide, reason } = room.pendingObjection;
+      room.pendingObjection = null;
+
+      const isSustained = ruling === "SUSTAINED";
+      const petDelta = isSustained ? (objectingSide === "petitioner" ? 5 : -6) : (objectingSide === "petitioner" ? -5 : 2);
+      const respDelta = isSustained ? (objectingSide === "respondent" ? 5 : -6) : (objectingSide === "respondent" ? -5 : 2);
+
+      room.participants.petitioner.credibility = Math.min(Math.max(room.participants.petitioner.credibility + petDelta, 20), 100);
+      room.participants.respondent.credibility = Math.min(Math.max(room.participants.respondent.credibility + respDelta, 20), 100);
+
+      const fullExplanation = explanation || (isSustained
+        ? "Objection SUSTAINED. That line of argument is hereby struck from the judicial record."
+        : "Objection OVERRULED. The argument is admissible; counsel may proceed."
+      );
+
+      roomStore.addTranscript(roomId, {
+        speaker: `Judge (${room.participants.judge.name})`,
+        side: "judge",
+        text: `RULING ON OBJECTION: ${ruling}! ${fullExplanation}`,
+        type: "ruling-on-objection"
+      });
+
+      io.to(roomId).emit("judge:ruling-on-objection", {
+        objectingSide,
+        targetSide,
+        reason,
+        ruling,
+        explanation: fullExplanation,
+        credibilityImpact: { petitioner: petDelta, respondent: respDelta },
+        struckFromRecord: isSustained
+      });
+
+      stateMachine.broadcastState(roomId);
+    });
+
+    // 4c. Human Judge Strikes Gavel (Sound & Shake)
+    socket.on("judge:strike-gavel", ({ roomId }) => {
+      const room = roomStore.getRoom(roomId);
+      if (!room) return;
+
+      roomStore.addTranscript(roomId, {
+        speaker: `Judge (${room.participants.judge.name})`,
+        side: "judge",
+        text: "ORDER IN THE COURT! *Bangs Gavel*",
+        type: "system"
+      });
+
+      io.to(roomId).emit("judge:gavel-struck", {
+        judgeName: room.participants.judge.name
+      });
+
+      stateMachine.broadcastState(roomId);
+    });
+
+    // 4d. Human Judge Interrogates Counsel (In-Trial Question)
+    socket.on("judge:submit-question", ({ roomId, question }) => {
+      const room = roomStore.getRoom(roomId);
+      if (!room || !question) return;
+
+      const currentSide = room.activeTurnSide || "both parties";
+
+      roomStore.addTranscript(roomId, {
+        speaker: `Judge (${room.participants.judge.name})`,
+        side: "judge",
+        text: `JUDGE QUESTIONS ${currentSide.toUpperCase()}: "${question}"`,
+        type: "question"
+      });
+
+      io.to(roomId).emit("judge:question", {
+        target_side: currentSide,
+        question,
+        referenced_article: "Presiding Bench Inquiry"
+      });
+
+      stateMachine.broadcastState(roomId);
+    });
+
+    // 4e. Human Judge Delivers Final Verdict
+    socket.on("judge:submit-verdict", ({ roomId, verdict, relief, reasoning, applicableArticles }) => {
+      const room = roomStore.getRoom(roomId);
+      if (!room) return;
+
+      const structuredVerdict = {
+        case_title: room.caseData.caseTitle || "Constitutional Dispute",
+        judge_persona: `Human Presiding Judge: ${room.participants.judge.name}`,
+        facts_summary: room.caseData.facts || "Facts submitted by parties",
+        issues: ["Determination of constitutional rights and requested relief"],
+        petitioner_arguments: room.caseData.petitionerArguments,
+        respondent_arguments: room.caseData.respondentArguments,
+        applicable_articles: applicableArticles || [
+          { article: "Constitutional Bench", quote: "Principles of natural justice and constitutional supremacy.", why_it_applies: "Foundational bench precedent" }
+        ],
+        reasoning: reasoning || "Having heard oral arguments from both parties and weighed the evidentiary submissions on record, this Court finds in accordance with constitutional principles.",
+        verdict: verdict || "In favor of the Petitioner",
+        relief: relief || room.caseData.reliefSought || "Relief awarded as prayed.",
+        credibility_scores: {
+          petitioner: room.participants.petitioner.credibility,
+          respondent: room.participants.respondent.credibility
+        },
+        disclaimer: "This is an educational simulation, not legal advice."
+      };
+
+      room.caseData.verdict = structuredVerdict;
+      room.phase = "VERDICT_REVEALED";
+
+      roomStore.addTranscript(roomId, {
+        speaker: `Judge (${room.participants.judge.name})`,
+        side: "judge",
+        text: `FINAL VERDICT DELIVERED: ${structuredVerdict.verdict}. Relief: ${structuredVerdict.relief}`,
+        type: "verdict",
+        metadata: { verdict: structuredVerdict }
+      });
+
+      io.to(roomId).emit("verdict:ready", {
+        roomId,
+        verdict: structuredVerdict,
+        transcript: room.caseData.transcript
+      });
+
+      stateMachine.broadcastState(roomId);
+    });
+
+    // 4f. Human Judge Requests AI Legal Advisor Citations
+    socket.on("judge:request-legal-aid", async ({ roomId }) => {
+      const room = roomStore.getRoom(roomId);
+      if (!room) return;
+
+      try {
+        const query = `${room.caseData.facts} ${room.caseData.petitionerArguments.slice(-2).join(" ")} ${room.caseData.respondentArguments.slice(-2).join(" ")}`.trim();
+        const res = await fetch(`http://127.0.0.1:8000/constitution/search`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            namespace_id: room.constitutionId,
+            query: query || "fundamental rights",
+            top_k: 4
+          })
+        });
+
+        if (res.ok) {
+          const articles = await res.json();
+          socket.emit("judge:legal-aid-ready", { articles });
+        }
+      } catch (err) {
+        console.warn("[Legal Aid] Search failed:", err.message);
+      }
     });
 
     // 5. Add Evidence

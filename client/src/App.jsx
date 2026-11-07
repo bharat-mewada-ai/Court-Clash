@@ -68,6 +68,10 @@ export default function App() {
           roomId={sessionData.roomId}
           mySide={sessionData.side}
           myName={sessionData.userName}
+          judgeMode={sessionData.judgeMode || "ai"}
+          constitutionId={sessionData.constitutionId || "indian_constitution"}
+          judgePersona={sessionData.judgePersona || "Strict"}
+          turnDuration={sessionData.turnDuration || 60}
           onLeaveCourt={handleLeaveCourt}
           onViewVerdict={handleViewVerdict}
         />
