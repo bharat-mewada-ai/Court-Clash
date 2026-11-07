@@ -10,6 +10,7 @@ export function TopBar({
   turnIndex = 1,
   activeTurnSide = "petitioner",
   secondsRemaining = 60,
+  onOpenRulebook = null,
   onLeave = null
 }) {
   const [isMuted, setIsMuted] = useState(soundEffects.isMuted());
@@ -99,6 +100,31 @@ export function TopBar({
       {/* Timer & Controls */}
       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
         <Timer secondsRemaining={secondsRemaining} />
+
+        {/* Read Rulebook / Clauses Button */}
+        {onOpenRulebook && (
+          <button
+            onClick={onOpenRulebook}
+            title="Read Rulebook Clauses & Articles"
+            style={{
+              background: "rgba(255, 197, 61, 0.12)",
+              border: "1px solid var(--accent-gold)",
+              color: "var(--accent-gold)",
+              padding: "6px 12px",
+              borderRadius: "var(--radius-sm)",
+              fontSize: "0.8rem",
+              fontWeight: "700",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              transition: "all 0.2s ease"
+            }}
+          >
+            <span>📖</span>
+            <span>Rulebook</span>
+          </button>
+        )}
         
         {/* Audio Mute/Unmute Toggle */}
         <button

@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { ScaleIcon, UserIcon, CopyIcon, CheckIcon, BookIcon, GavelIcon } from '../components/shared/Icons.jsx';
 import { Button } from '../components/shared/Button.jsx';
 import { Chip } from '../components/shared/Chip.jsx';
+import { RulebookReaderModal } from '../components/shared/RulebookReaderModal.jsx';
 
 export function Lobby({ onEnterCourt, onOpenEditor }) {
   const [userName, setUserName] = useState("Aarav Sharma");
   const [selectedSide, setSelectedSide] = useState("petitioner");
   const [judgeMode, setJudgeMode] = useState("ai"); // 'ai' or 'human'
   const [selectedConstitution, setSelectedConstitution] = useState("indian_constitution");
+  const [readingRulebookId, setReadingRulebookId] = useState(null);
   const [selectedPersona, setSelectedPersona] = useState("Strict");
   const [turnDuration, setTurnDuration] = useState(60);
   const [copied, setCopied] = useState(false);
@@ -271,7 +273,7 @@ export function Lobby({ onEnterCourt, onOpenEditor }) {
           gap: "16px"
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
           <div>
             <h2 style={{ fontSize: "1.2rem", fontWeight: "700", color: "var(--text-primary)" }}>
               2. Select Courtroom Rulebook
@@ -280,9 +282,19 @@ export function Lobby({ onEnterCourt, onOpenEditor }) {
               The AI Judge will retrieve and cite strictly from this selected rulebook.
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={onOpenEditor} icon={<BookIcon size={16} />}>
-            + Custom Rulebook
-          </Button>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <Button
+              variant="subtle"
+              size="sm"
+              onClick={() => setReadingRulebookId(selectedConstitution)}
+              icon={<BookIcon size={16} />}
+            >
+              📖 Read Active Book
+            </Button>
+            <Button variant="outline" size="sm" onClick={onOpenEditor} icon={<BookIcon size={16} />}>
+              + Custom Rulebook
+            </Button>
+          </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "14px" }}>
@@ -302,39 +314,89 @@ export function Lobby({ onEnterCourt, onOpenEditor }) {
                   padding: "16px",
                   cursor: "pointer",
                   transition: "all 0.2s ease",
-                  position: "relative"
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between"
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                  <Chip variant={tagVariant}>{tagLabel}</Chip>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                      {book.articlesCount} clauses
-                    </span>
-                    {!book.isBuiltIn && (
-                      <button
-                        onClick={(e) => handleDeleteConstitution(e, book.id)}
-                        title="Delete custom rulebook"
-                        style={{
-                          background: "transparent",
-                          border: "none",
-                          color: "var(--accent-coral)",
-                          cursor: "pointer",
-                          fontSize: "1rem",
-                          padding: "0 4px"
-                        }}
-                      >
-                        ✕
-                      </button>
-                    )}
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                    <Chip variant={tagVariant}>{tagLabel}</Chip>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                        {book.articlesCount} clauses
+                      </span>
+                      {!book.isBuiltIn && (
+                        <button
+                          onClick={(e) => handleDeleteConstitution(e, book.id)}
+                          title="Delete custom rulebook"
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: "var(--accent-coral)",
+                            cursor: "pointer",
+                            fontSize: "1rem",
+                            padding: "0 4px"
+                          }}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
+                  <h3 style={{ fontSize: "1.05rem", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>
+                    {book.name || book.title}
+                  </h3>
+                  <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: "1.4" }}>
+                    {book.description}
+                  </p>
                 </div>
-                <h3 style={{ fontSize: "1.05rem", fontWeight: "700", color: "var(--text-primary)", marginBottom: "6px" }}>
-                  {book.name || book.title}
-                </h3>
-                <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: "1.4" }}>
-                  {book.description}
-                </p>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginTop: "16px",
+                    paddingTop: "12px",
+                    borderTop: "1px solid rgba(255, 255, 255, 0.08)"
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "0.78rem",
+                      color: isSelected ? "var(--accent-gold)" : "var(--text-muted)",
+                      fontWeight: isSelected ? "700" : "500"
+                    }}
+                  >
+                    {isSelected ? "✓ Active Rulebook" : "Click to select"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setReadingRulebookId(book.id);
+                    }}
+                    style={{
+                      background: "rgba(255, 255, 255, 0.08)",
+                      border: "1px solid rgba(255, 255, 255, 0.18)",
+                      borderRadius: "6px",
+                      color: "var(--text-primary)",
+                      padding: "5px 10px",
+                      fontSize: "0.78rem",
+                      fontWeight: "600",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      transition: "all 0.15s ease"
+                    }}
+                    title={`Read full clauses of ${book.name}`}
+                  >
+                    <span>📖</span>
+                    <span>Read Clauses</span>
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -549,6 +611,14 @@ export function Lobby({ onEnterCourt, onOpenEditor }) {
       <footer style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "0.8rem" }}>
         Educational simulation only. Not legal advice. Grounded by constitutional RAG.
       </footer>
+
+      {/* Interactive Rulebook & Clauses Reader Modal */}
+      {readingRulebookId && (
+        <RulebookReaderModal
+          rulebookId={readingRulebookId}
+          onClose={() => setReadingRulebookId(null)}
+        />
+      )}
     </div>
   );
 }

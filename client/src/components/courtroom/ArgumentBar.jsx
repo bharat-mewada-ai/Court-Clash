@@ -7,7 +7,8 @@ export function ArgumentBar({
   currentSide = "petitioner",
   onSubmitArgument,
   onRaiseObjection,
-  onCiteArticle
+  onCiteArticle,
+  onOpenRulebook = null
 }) {
   const [argumentText, setArgumentText] = useState("");
   const [showCiteModal, setShowCiteModal] = useState(false);
@@ -284,6 +285,35 @@ export function ArgumentBar({
               </label>
             ))}
           </div>
+
+          {onOpenRulebook && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowCiteModal(false);
+                onOpenRulebook();
+              }}
+              style={{
+                background: "rgba(61, 219, 176, 0.1)",
+                border: "1px dashed var(--accent-mint)",
+                borderRadius: "var(--radius-sm)",
+                color: "var(--accent-mint)",
+                padding: "8px",
+                fontSize: "0.8rem",
+                fontWeight: "600",
+                cursor: "pointer",
+                width: "100%",
+                marginBottom: "12px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px"
+              }}
+            >
+              <span>📖</span>
+              <span>Search & Browse All Clauses</span>
+            </button>
+          )}
 
           <input
             type="text"

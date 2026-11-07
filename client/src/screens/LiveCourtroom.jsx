@@ -7,6 +7,7 @@ import { ArgumentBar } from '../components/courtroom/ArgumentBar.jsx';
 import { JudgeControls } from '../components/courtroom/JudgeControls.jsx';
 import { socketService } from '../services/socketClient.js';
 import { soundEffects } from '../services/soundEffects.js';
+import { RulebookReaderModal } from '../components/shared/RulebookReaderModal.jsx';
 
 export function LiveCourtroom({
   roomId = "demo-room",
@@ -69,6 +70,7 @@ export function LiveCourtroom({
   const [judgeEmotion, setJudgeEmotion] = useState("NEUTRAL");
   const [screenShake, setScreenShake] = useState(false);
   const [scoreToast, setScoreToast] = useState(null);
+  const [showRulebookModal, setShowRulebookModal] = useState(false);
   const [galleryFeed, setGalleryFeed] = useState([
     { id: "g1", user: "Rohan_NLU", text: "Bench strictly rules pe chal rahi hai aaj 🔥" },
     { id: "g2", user: "Pooja_Law", text: "Dekhte hain citation kitni solid aati hai! ⚖️" }
@@ -349,6 +351,7 @@ export function LiveCourtroom({
         turnIndex={roomState.turnIndex}
         activeTurnSide={roomState.activeTurnSide}
         secondsRemaining={roomState.turnSecondsRemaining}
+        onOpenRulebook={() => setShowRulebookModal(true)}
         onLeave={onLeaveCourt}
       />
 
@@ -487,6 +490,7 @@ export function LiveCourtroom({
           onSubmitArgument={handleSubmitArgument}
           onRaiseObjection={handleRaiseObjection}
           onCiteArticle={handleCiteArticle}
+          onOpenRulebook={() => setShowRulebookModal(true)}
         />
       )}
 
@@ -502,6 +506,18 @@ export function LiveCourtroom({
       >
         Disclaimer: This is an educational simulation, not legal advice. Rules are grounded via RAG over the chosen constitution.
       </footer>
+
+      {/* Live In-Court Rulebook Reader & Clause Search */}
+      {showRulebookModal && (
+        <RulebookReaderModal
+          rulebookId={roomState.constitutionId || constitutionId}
+          onClose={() => setShowRulebookModal(false)}
+          onSelectArticle={(art) => {
+            handleCiteArticle(art.number);
+            setShowRulebookModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }
