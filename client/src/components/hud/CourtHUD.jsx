@@ -13,6 +13,15 @@ import { BottomControls } from './BottomControls.jsx';
  */
 export function CourtHUD({ children, onBack }) {
   const cameraShot = useCourtStore((s) => s.cameraShot);
+  const setCameraShot = useCourtStore((s) => s.setCameraShot);
+
+  const shotButtons = [
+    { id: 'wide', label: 'Inside' },
+    { id: 'j', label: 'Bench' },
+    { id: 'pet', label: 'Petitioner' },
+    { id: 'res', label: 'Respondent' },
+    { id: 'overview', label: 'Overview' }
+  ];
 
   return (
     <div
@@ -46,24 +55,61 @@ export function CourtHUD({ children, onBack }) {
         {/* The 3D R3F Canvas */}
         {children}
 
-        {/* Camera Shot Pill */}
+        {/* Interactive Camera Angle Selector */}
         <div
           id="shot"
           style={{
             position: 'absolute',
             left: '3%',
             top: '4%',
-            background: 'rgba(20, 17, 46, 0.85)',
+            background: 'rgba(20, 17, 46, 0.88)',
             borderRadius: '999px',
-            padding: '3px 12px',
+            padding: '3px 6px 3px 12px',
             fontSize: '0.75rem',
             color: 'var(--ink, #f3eefc)',
-            pointerEvents: 'none',
             zIndex: 15,
-            border: '1px solid rgba(255, 255, 255, 0.08)'
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)'
           }}
         >
-          Camera: {cameraShot}
+          <span style={{ fontWeight: 600, color: 'var(--brass, #d6b46a)' }}>
+            Camera:
+          </span>
+          <div style={{ display: 'flex', gap: '3px' }}>
+            {shotButtons.map((btn) => {
+              const isActive =
+                cameraShot === btn.id ||
+                (cameraShot === 'inside' && btn.id === 'wide') ||
+                (cameraShot === 'judge' && btn.id === 'j') ||
+                (cameraShot === 'petitioner' && btn.id === 'pet') ||
+                (cameraShot === 'respondent' && btn.id === 'res');
+
+              return (
+                <button
+                  key={btn.id}
+                  type="button"
+                  onClick={() => setCameraShot(btn.id)}
+                  style={{
+                    background: isActive ? 'var(--brass, #d6b46a)' : 'rgba(255, 255, 255, 0.08)',
+                    color: isActive ? '#1a1640' : 'var(--ink, #f3eefc)',
+                    border: 0,
+                    borderRadius: '999px',
+                    padding: '2px 8px',
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title={`Switch to ${btn.label} view`}
+                >
+                  {btn.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Audience Shout Pill */}

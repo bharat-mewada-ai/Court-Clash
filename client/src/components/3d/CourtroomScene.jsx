@@ -28,7 +28,7 @@ export function CourtroomScene({
     <Canvas
       shadows
       dpr={[1, 2]} // Quality bar: Capped at 2 for smooth mobile/mid-range performance
-      camera={{ fov: 48, position: [0, 4.8, 11], near: 0.1, far: 60 }}
+      camera={{ fov: 48, position: [0, 2.15, 4.3], near: 0.1, far: 60 }}
       style={{
         position: 'absolute',
         top: 0,
@@ -42,12 +42,13 @@ export function CourtroomScene({
       <color attach="background" args={['#1a1230']} />
       <fog attach="fog" args={['#1a1230', 18, 36]} />
 
-      {/* 2. Courtroom Warm Illumination */}
-      <hemisphereLight args={['#fff1d6', '#3a2a1c', 0.75]} />
+      {/* 2. Courtroom Warm Studio Illumination */}
+      <ambientLight intensity={0.45} />
+      <hemisphereLight args={['#fff4dc', '#2d2448', 0.65]} />
       <directionalLight
-        position={[-4, 9, 7]}
-        intensity={0.8}
-        color="#ffe2b0"
+        position={[-2, 10, 6]}
+        intensity={0.75}
+        color="#ffe8c2"
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
@@ -56,6 +57,8 @@ export function CourtroomScene({
         shadow-camera-top={11}
         shadow-camera-bottom={-11}
       />
+      {/* Warm Fill Light */}
+      <directionalLight position={[4, 8, 4]} intensity={0.35} color="#e0d6ff" />
 
       {/* 3. Environment: Room, Bench, and Tables */}
       <Room />
