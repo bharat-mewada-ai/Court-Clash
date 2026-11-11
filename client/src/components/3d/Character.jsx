@@ -368,3 +368,4 @@ export function Character({
     </group>
   );
 }
+

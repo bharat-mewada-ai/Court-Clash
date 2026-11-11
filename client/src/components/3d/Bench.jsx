@@ -78,3 +78,4 @@ export function Bench({ gavelStriking = false }) {
     </group>
   );
 }
+
