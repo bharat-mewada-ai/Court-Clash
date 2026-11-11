@@ -3,9 +3,10 @@ import { Lobby } from './screens/Lobby.jsx';
 import { LiveCourtroom } from './screens/LiveCourtroom.jsx';
 import { VerdictScreen } from './screens/VerdictScreen.jsx';
 import { ConstitutionEditor } from './screens/ConstitutionEditor.jsx';
+import { Courtroom3DScreen } from './screens/Courtroom3DScreen.jsx';
 
 export default function App() {
-  const [currentRoute, setCurrentRoute] = useState("lobby"); // 'lobby', 'court', 'verdict', 'editor'
+  const [currentRoute, setCurrentRoute] = useState("lobby"); // 'lobby', 'court', 'court-3d', 'verdict', 'editor'
   const [sessionData, setSessionData] = useState({
     roomId: "court-" + Math.random().toString(36).substring(2, 7),
     userName: "Advocate",
@@ -27,6 +28,8 @@ export default function App() {
       }
     } else if (path === "/constitutions/new") {
       setCurrentRoute("editor");
+    } else if (path === "/3d") {
+      setCurrentRoute("court-3d");
     }
   }, []);
 
@@ -34,6 +37,11 @@ export default function App() {
     setSessionData(data);
     window.history.pushState({}, "", `/court/${data.roomId}`);
     setCurrentRoute("court");
+  };
+
+  const handleOpen3D = () => {
+    window.history.pushState({}, "", "/3d");
+    setCurrentRoute("court-3d");
   };
 
   const handleLeaveCourt = () => {
@@ -56,11 +64,16 @@ export default function App() {
       {currentRoute === "lobby" && (
         <Lobby
           onEnterCourt={handleEnterCourt}
+          onOpen3D={handleOpen3D}
           onOpenEditor={() => {
             window.history.pushState({}, "", "/constitutions/new");
             setCurrentRoute("editor");
           }}
         />
+      )}
+
+      {currentRoute === "court-3d" && (
+        <Courtroom3DScreen onBack={handleReturnLobby} />
       )}
 
       {currentRoute === "court" && (

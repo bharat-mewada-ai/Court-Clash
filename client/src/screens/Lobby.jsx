@@ -4,7 +4,7 @@ import { Button } from '../components/shared/Button.jsx';
 import { Chip } from '../components/shared/Chip.jsx';
 import { RulebookReaderModal } from '../components/shared/RulebookReaderModal.jsx';
 
-export function Lobby({ onEnterCourt, onOpenEditor }) {
+export function Lobby({ onEnterCourt, onOpenEditor, onOpen3D }) {
   const [userName, setUserName] = useState("Aarav Sharma");
   const [selectedSide, setSelectedSide] = useState("petitioner");
   const [judgeMode, setJudgeMode] = useState("ai"); // 'ai' or 'human'
@@ -597,15 +597,25 @@ export function Lobby({ onEnterCourt, onOpenEditor }) {
           </Button>
         </div>
 
-        <Button
-          variant="primary"
-          size="lg"
-          onClick={handleStartCourt}
-          icon={<ScaleIcon size={22} color="var(--text-on-accent)" />}
-          style={{ width: "100%", marginTop: "8px" }}
-        >
-          Open Court & Begin Session
-        </Button>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "8px" }}>
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={handleStartCourt}
+            icon={<ScaleIcon size={22} color="var(--text-on-accent)" />}
+            style={{ flex: 1, minWidth: "220px" }}
+          >
+            Open 2D Court Session
+          </Button>
+          <Button
+            variant="mint"
+            size="lg"
+            onClick={onOpen3D}
+            style={{ flex: 1, minWidth: "220px", fontWeight: "700" }}
+          >
+            🎮 Enter 3D Courtroom (Three.js)
+          </Button>
+        </div>
       </div>
 
       <footer style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "0.8rem" }}>

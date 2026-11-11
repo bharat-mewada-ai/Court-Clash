@@ -133,7 +133,7 @@ class JudgeCaseInput(BaseModel):
 
 class JudgeQuestionInput(BaseModel):
     """Input payload to ask an in-trial judicial question."""
-    namespace_id: str = Field(default="indian_constitution")
+    namespahnce_id: str = Field(default="indian_constitution")
     persona: JudgePersona = Field(default=JudgePersona.STRICT)
     case_title: str
     facts: str

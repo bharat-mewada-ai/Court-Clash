@@ -446,3 +446,4 @@ export function RulebookReaderModal({ rulebookId, onClose, onSelectArticle = nul
     </div>
   );
 }
+
