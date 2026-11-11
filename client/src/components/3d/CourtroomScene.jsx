@@ -5,6 +5,8 @@ import { Bench } from './Bench.jsx';
 import { CounselTable } from './CounselTable.jsx';
 import { Character } from './Character.jsx';
 import { Audience } from './Audience.jsx';
+import { CameraRig } from './CameraRig.jsx';
+import { SpeakerSpotlight } from './SpeakerSpotlight.jsx';
 
 /**
  * Main 3D Courtroom Scene Root:
@@ -109,7 +111,11 @@ export function CourtroomScene({
       {/* 7. Gallery Audience (18 Seated Spectators) */}
       <Audience />
 
-      {/* 8. Extra rigs or controls (CameraRig, SpeakerSpotlight) */}
+      {/* 8. Dynamic Camera Rig & Speaker Spotlight */}
+      <CameraRig />
+      <SpeakerSpotlight />
+
+      {/* 9. Extra user children */}
       {children}
     </Canvas>
   );
