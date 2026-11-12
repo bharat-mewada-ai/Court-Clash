@@ -1,6 +1,6 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Billboard, Text } from '@react-three/drei';
+import { Html } from '@react-three/drei';
 
 /**
  * Character Component
@@ -347,23 +347,27 @@ export function Character({
         </group>
       </group>
 
-      {/* Overhead Name Label Badge */}
+      {/* Overhead Name Label Badge (Zero-suspension HTML billboard) */}
       {name && (
-        <Billboard position={[0, 2.35, 0]}>
-          <mesh position={[0, 0, -0.01]}>
-            <planeGeometry args={[1.9, 0.32]} />
-            <meshBasicMaterial color="#14112e" opacity={0.88} transparent />
-          </mesh>
-          <Text
-            fontSize={0.14}
-            color="#ffffff"
-            anchorX="center"
-            anchorY="middle"
-            font="https://fonts.gstatic.com/s/baloo2/v21/wXKrE3kTposypRyd51fcAA.woff"
+        <Html center position={[0, 2.35, 0]} distanceFactor={12} style={{ pointerEvents: 'none' }}>
+          <div
+            style={{
+              background: 'rgba(20, 17, 46, 0.88)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: '999px',
+              padding: '3px 12px',
+              fontSize: '12px',
+              fontWeight: 700,
+              color: '#ffffff',
+              whiteSpace: 'nowrap',
+              fontFamily: '"Baloo 2", system-ui, sans-serif',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.4)',
+              userSelect: 'none'
+            }}
           >
             {name}
-          </Text>
-        </Billboard>
+          </div>
+        </Html>
       )}
     </group>
   );

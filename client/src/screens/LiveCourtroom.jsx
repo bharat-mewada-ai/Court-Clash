@@ -8,6 +8,7 @@ import { JudgeControls } from '../components/courtroom/JudgeControls.jsx';
 import { socketService } from '../services/socketClient.js';
 import { soundEffects } from '../services/soundEffects.js';
 import { RulebookReaderModal } from '../components/shared/RulebookReaderModal.jsx';
+import { CourtroomScene } from '../components/3d/CourtroomScene.jsx';
 
 export function LiveCourtroom({
   roomId = "demo-room",
@@ -71,6 +72,7 @@ export function LiveCourtroom({
   const [screenShake, setScreenShake] = useState(false);
   const [scoreToast, setScoreToast] = useState(null);
   const [showRulebookModal, setShowRulebookModal] = useState(false);
+  const [viewMode, setViewMode] = useState("3d");
   const [galleryFeed, setGalleryFeed] = useState([
     { id: "g1", user: "Rohan_NLU", text: "Bench strictly rules pe chal rahi hai aaj 🔥" },
     { id: "g2", user: "Pooja_Law", text: "Dekhte hain citation kitni solid aati hai! ⚖️" }
@@ -351,6 +353,8 @@ export function LiveCourtroom({
         turnIndex={roomState.turnIndex}
         activeTurnSide={roomState.activeTurnSide}
         secondsRemaining={roomState.turnSecondsRemaining}
+        viewMode={viewMode}
+        onToggleView={() => setViewMode((v) => (v === "3d" ? "2d" : "3d"))}
         onOpenRulebook={() => setShowRulebookModal(true)}
         onLeave={onLeaveCourt}
       />
@@ -418,56 +422,148 @@ export function LiveCourtroom({
         </div>
       )}
 
-      {/* 2. Main 3-Column Layout (280px, flexible, 280px) */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-          gap: "20px",
-          flex: 1,
-          alignItems: "stretch"
-        }}
-        className="courtroom-columns"
-      >
-        {/* Left Column: Petitioner Card (280px minimum) */}
-        <div style={{ flex: "0 0 280px", maxWidth: "340px", width: "100%" }}>
-          <PartyCard
-            side="petitioner"
-            name={roomState.participants.petitioner.name}
-            credibility={roomState.participants.petitioner.credibility}
-            isActiveTurn={roomState.activeTurnSide === "petitioner"}
-            latestArgument={petitionerLatest}
-            connected={roomState.participants.petitioner.connected}
-          />
-        </div>
+      {/* 2. Courtroom View: 3D Scene View vs 2D Split Cards */}
+      {viewMode === "3d" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "14px", flex: 1 }}>
+          {/* 3D WebGL Courtroom Canvas */}
+          <div
+            style={{
+              position: "relative",
+              borderRadius: "18px",
+              overflow: "hidden",
+              aspectRatio: "16/9",
+              minHeight: "360px",
+              background: "#1a1230",
+              boxShadow: "0 10px 30px rgba(0, 0, 0, 0.5)",
+              width: "100%"
+            }}
+          >
+            <CourtroomScene
+              judgePersona={roomState.judgePersona}
+              judgeState={roomState.activeTurnSide === "judge" ? "talking" : "idle"}
+              petitionerName={roomState.participants.petitioner.name}
+              petitionerState={roomState.activeTurnSide === "petitioner" ? "talking" : "idle"}
+              respondentName={roomState.participants.respondent.name}
+              respondentState={roomState.activeTurnSide === "respondent" ? "talking" : "idle"}
+              respondentGhosted={!roomState.participants.respondent.connected}
+              gavelStriking={Boolean(activeObjectionRuling)}
+            />
 
-        {/* Center Column: Presiding Bench & Live Gallery Chatter */}
-        <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-          <Bench
-            judgePersona={roomState.judgePersona}
-            judgeMode={roomState.judgeMode}
-            judgeName={roomState.participants.judge?.name || "Hon'ble Judge"}
-            isHumanJudge={roomState.participants.judge?.isHuman || judgeMode === "human"}
-            judgeStatement={judgeSpeech}
-            judgeEmotion={judgeEmotion}
-            articlesInPlay={roomState.caseData.articlesInPlay}
-            transcript={roomState.caseData.transcript}
-          />
-          <GalleryFeed reactions={galleryFeed} />
-        </div>
+            {/* In-canvas Judge Statement Floating Subtitle */}
+            <div
+              style={{
+                position: "absolute",
+                left: "3%",
+                right: "3%",
+                bottom: "4%",
+                background: "rgba(20, 17, 46, 0.88)",
+                borderRadius: "14px",
+                padding: "8px 14px",
+                fontSize: "clamp(0.78rem, 2vw, 0.95rem)",
+                lineHeight: "1.3",
+                color: "#f3eefc",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                zIndex: 15,
+                boxShadow: "0 4px 16px rgba(0, 0, 0, 0.4)"
+              }}
+            >
+              <strong style={{ color: "var(--accent-gold)", marginRight: "6px" }}>
+                Presiding Bench ({roomState.judgePersona}):
+              </strong>
+              <span>{judgeSpeech}</span>
+            </div>
+          </div>
 
-        {/* Right Column: Respondent Card (280px minimum) */}
-        <div style={{ flex: "0 0 280px", maxWidth: "340px", width: "100%" }}>
-          <PartyCard
-            side="respondent"
-            name={roomState.participants.respondent.name}
-            credibility={roomState.participants.respondent.credibility}
-            isActiveTurn={roomState.activeTurnSide === "respondent"}
-            latestArgument={respondentLatest}
-            connected={roomState.participants.respondent.connected}
-          />
+          {/* Under-canvas Live Transcript & Audience Feed */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+              gap: "14px"
+            }}
+          >
+            {/* Live Transcript */}
+            <div
+              style={{
+                backgroundColor: "var(--card-bg)",
+                borderRadius: "var(--radius-md)",
+                padding: "14px 18px",
+                maxHeight: "160px",
+                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px"
+              }}
+            >
+              <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                📜 Judicial Record ({roomState.caseData.transcript.length} items)
+              </span>
+              {roomState.caseData.transcript.slice(-4).map((item) => (
+                <div key={item.id} style={{ fontSize: "0.82rem", lineHeight: "1.3" }}>
+                  <strong style={{ color: item.side === "petitioner" ? "var(--accent-coral)" : item.side === "respondent" ? "var(--accent-mint)" : "var(--accent-gold)" }}>
+                    {item.speaker}:
+                  </strong>{" "}
+                  <span style={{ color: "var(--text-primary)" }}>{item.text}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Gallery Chatter Feed */}
+            <GalleryFeed reactions={galleryFeed} />
+          </div>
         </div>
-      </div>
+      ) : (
+        /* 2D 3-Column Split View */
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "20px",
+            flex: 1,
+            alignItems: "stretch"
+          }}
+          className="courtroom-columns"
+        >
+          {/* Left Column: Petitioner Card (280px minimum) */}
+          <div style={{ flex: "0 0 280px", maxWidth: "340px", width: "100%" }}>
+            <PartyCard
+              side="petitioner"
+              name={roomState.participants.petitioner.name}
+              credibility={roomState.participants.petitioner.credibility}
+              isActiveTurn={roomState.activeTurnSide === "petitioner"}
+              latestArgument={petitionerLatest}
+              connected={roomState.participants.petitioner.connected}
+            />
+          </div>
+
+          {/* Center Column: Presiding Bench & Live Gallery Chatter */}
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+            <Bench
+              judgePersona={roomState.judgePersona}
+              judgeMode={roomState.judgeMode}
+              judgeName={roomState.participants.judge?.name || "Hon'ble Judge"}
+              isHumanJudge={roomState.participants.judge?.isHuman || judgeMode === "human"}
+              judgeStatement={judgeSpeech}
+              judgeEmotion={judgeEmotion}
+              articlesInPlay={roomState.caseData.articlesInPlay}
+              transcript={roomState.caseData.transcript}
+            />
+            <GalleryFeed reactions={galleryFeed} />
+          </div>
+
+          {/* Right Column: Respondent Card (280px minimum) */}
+          <div style={{ flex: "0 0 280px", maxWidth: "340px", width: "100%" }}>
+            <PartyCard
+              side="respondent"
+              name={roomState.participants.respondent.name}
+              credibility={roomState.participants.respondent.credibility}
+              isActiveTurn={roomState.activeTurnSide === "respondent"}
+              latestArgument={respondentLatest}
+              connected={roomState.participants.respondent.connected}
+            />
+          </div>
+        </div>
+      )}
 
       {/* 3. Bottom Controls: Judge Controls if mySide === 'judge', else Counsel ArgumentBar */}
       {mySide === "judge" ? (

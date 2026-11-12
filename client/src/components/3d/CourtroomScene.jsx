@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Room } from './Room.jsx';
 import { Bench } from './Bench.jsx';
@@ -60,66 +60,68 @@ export function CourtroomScene({
       {/* Warm Fill Light */}
       <directionalLight position={[4, 8, 4]} intensity={0.35} color="#e0d6ff" />
 
-      {/* 3. Environment: Room, Bench, and Tables */}
-      <Room />
-      <Bench gavelStriking={gavelStriking} />
-      <CounselTable />
+      <Suspense fallback={null}>
+        {/* 3. Environment: Room, Bench, and Tables */}
+        <Room />
+        <Bench gavelStriking={gavelStriking} />
+        <CounselTable />
 
-      {/* 4. Judge (Presiding Bench) */}
-      <Character
-        role="judge"
-        position={[0, 0.4, -5.1]}
-        appearance={{
-          skin: 0xc68a5e,
-          coat: 0x16141f,
-          hair: 0xb9b9c4,
-          robe: true,
-          glasses: true,
-          stache: true
-        }}
-        state={judgeState}
-        name={`Presiding Bench · ${judgePersona}`}
-      />
+        {/* 4. Judge (Presiding Bench) */}
+        <Character
+          role="judge"
+          position={[0, 0.4, -5.1]}
+          appearance={{
+            skin: 0xc68a5e,
+            coat: 0x16141f,
+            hair: 0xb9b9c4,
+            robe: true,
+            glasses: true,
+            stache: true
+          }}
+          state={judgeState}
+          name={`Presiding Bench · ${judgePersona}`}
+        />
 
-      {/* 5. Petitioner Counsel (Left Desk) */}
-      <Character
-        role="petitioner"
-        position={[-3, 0, 0.7]}
-        rotation={[0, 1.03, 0]}
-        appearance={{
-          skin: 0xd9a06e,
-          coat: 0x16141f,
-          hair: 0x1b1b1b
-        }}
-        state={petitionerState}
-        name={petitionerName}
-      />
+        {/* 5. Petitioner Counsel (Left Desk) */}
+        <Character
+          role="petitioner"
+          position={[-3, 0, 0.7]}
+          rotation={[0, 1.03, 0]}
+          appearance={{
+            skin: 0xd9a06e,
+            coat: 0x16141f,
+            hair: 0x1b1b1b
+          }}
+          state={petitionerState}
+          name={petitionerName}
+        />
 
-      {/* 6. Respondent Counsel (Right Desk, ghosted when awaiting connection) */}
-      <Character
-        role="respondent"
-        position={[3, 0, 0.7]}
-        rotation={[0, -1.03, 0]}
-        appearance={{
-          skin: 0xb87a52,
-          coat: 0x16141f,
-          hair: 0x2a1d17,
-          long: true
-        }}
-        state={respondentState}
-        ghosted={respondentGhosted}
-        name={respondentGhosted ? 'Awaiting respondent…' : respondentName}
-      />
+        {/* 6. Respondent Counsel (Right Desk, ghosted when awaiting connection) */}
+        <Character
+          role="respondent"
+          position={[3, 0, 0.7]}
+          rotation={[0, -1.03, 0]}
+          appearance={{
+            skin: 0xb87a52,
+            coat: 0x16141f,
+            hair: 0x2a1d17,
+            long: true
+          }}
+          state={respondentState}
+          ghosted={respondentGhosted}
+          name={respondentGhosted ? 'Awaiting respondent…' : respondentName}
+        />
 
-      {/* 7. Gallery Audience (18 Seated Spectators) */}
-      <Audience />
+        {/* 7. Gallery Audience (18 Seated Spectators) */}
+        <Audience />
 
-      {/* 8. Dynamic Camera Rig & Speaker Spotlight */}
-      <CameraRig />
-      <SpeakerSpotlight />
+        {/* 8. Dynamic Camera Rig & Speaker Spotlight */}
+        <CameraRig />
+        <SpeakerSpotlight />
 
-      {/* 9. Extra user children */}
-      {children}
+        {/* 9. Extra user children */}
+        {children}
+      </Suspense>
     </Canvas>
   );
 }

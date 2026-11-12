@@ -10,6 +10,8 @@ export function TopBar({
   turnIndex = 1,
   activeTurnSide = "petitioner",
   secondsRemaining = 60,
+  viewMode = "3d",
+  onToggleView = null,
   onOpenRulebook = null,
   onLeave = null
 }) {
@@ -100,6 +102,30 @@ export function TopBar({
       {/* Timer & Controls */}
       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
         <Timer secondsRemaining={secondsRemaining} />
+
+        {/* 3D vs 2D Viewport Toggle */}
+        {onToggleView && (
+          <button
+            onClick={onToggleView}
+            title="Toggle between 3D Courtroom and 2D Split Cards"
+            style={{
+              background: viewMode === "3d" ? "var(--teal, #2dd4a8)" : "var(--chip-track)",
+              color: viewMode === "3d" ? "#1a1640" : "var(--text-primary)",
+              border: "1px solid var(--chip-track-light)",
+              padding: "6px 12px",
+              borderRadius: "var(--radius-sm)",
+              fontSize: "0.8rem",
+              fontWeight: "700",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              transition: "all 0.2s ease"
+            }}
+          >
+            <span>{viewMode === "3d" ? "🎮 3D View" : "📋 2D View"}</span>
+          </button>
+        )}
 
         {/* Read Rulebook / Clauses Button */}
         {onOpenRulebook && (
